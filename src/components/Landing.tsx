@@ -31,6 +31,7 @@ export function Landing() {
         </a>
         <nav>
           <a href="#/demo">{t("nav.demo")}</a>
+          <a href="#/connect">{t("nav.connect")}</a>
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
             {t("nav.github")}
           </a>

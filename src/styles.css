@@ -235,3 +235,11 @@ a.kind:hover { text-decoration: underline; }
 .lang button { background: none; border: 0; padding: .05rem .6rem; font-size: .75rem; font-weight: 600; color: var(--muted); }
 .lang button.on { background: var(--text); color: var(--bg); }
 .topbar nav { align-items: center; }
+
+.error { color: var(--danger); font-size: .92rem; margin: .6rem 0; }
+.connect-steps { display: grid; gap: .6rem; padding-left: 1.2rem; margin: 1.2rem 0 2rem; }
+.connect-form { display: grid; gap: .5rem; max-width: 460px; }
+.connect-form label { font-size: .85rem; color: var(--muted); margin-top: .6rem; }
+.connect-form input { padding: .55rem .8rem; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text); font: 15px var(--mono); }
+.connect-form .btn { justify-self: start; margin-top: 1rem; }
+.btn:disabled { opacity: .6; cursor: default; transform: none; }
