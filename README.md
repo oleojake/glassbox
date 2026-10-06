@@ -29,6 +29,10 @@ The build is a static site (relative paths, hash routing), so it works on any st
 
 Nothing is sent to a server. Edits you make in the demo are saved in your browser's `localStorage`, and the demo banner has a reset button.
 
+## Connect your own notes repo
+
+Create a **private** GitHub repository for your notes (see `docs/FORMAT.md` for the layout), then create a fine-grained personal access token limited to that repository with **Contents: Read and write**. Open `#/connect`, paste the repository name and the token. The token stays in your browser (localStorage) and is only sent to `api.github.com`; there is no server. Every save in the app becomes a commit in your repository. Public repositories are refused on purpose.
+
 ## License
 
 MIT

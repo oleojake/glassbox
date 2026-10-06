@@ -1,7 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { backlinks, demoProjects, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
+import { backlinks, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
 import { noteHref, projectHref, tagHref, typeHref, type Route } from "../lib/router";
-import { useNotes } from "../lib/useNotes";
+import { useWorkspace } from "../lib/useWorkspace";
+import { GitHubError } from "../lib/github";
 import { LangSwitch, useI18n, type Key } from "../lib/i18n";
 import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
@@ -9,9 +10,9 @@ import { REPO_URL } from "./Landing";
 const NOTE_HREF = "#/demo/notes/";
 const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
 
-export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) {
+export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" }> }) {
   const { t } = useI18n();
-  const { notes, save, create, reset, hasChanges } = useNotes();
+  const { mode, repo, status, error, notes, projects, save, create, reset, reload, hasChanges } = useWorkspace();
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const titles = useMemo(() => new Map(notes.map((n) => [n.slug, n.title])), [notes]);
@@ -29,7 +30,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
   }, []);
 
   const note = route.name === "note" ? notes.find((n) => n.slug === route.slug) : undefined;
-  const project = route.name === "project" ? demoProjects.find((p) => p.slug === route.slug) : undefined;
+  const project = route.name === "project" ? projects.find((p) => p.slug === route.slug) : undefined;
   const general = notes.filter((n) => n.projects.length === 0);
 
   const link = (n: Note) => (
@@ -42,10 +43,24 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
     <div className="app">
       <div className="demo-banner">
         <span>
-          <strong>{t("demo.label")}</strong>{t("demo.banner")}
+          {mode === "connected" ? (
+            <>
+              <strong>{t("demo.connected")}</strong> {repo}
+            </>
+          ) : (
+            <>
+              <strong>{t("demo.label")}</strong>
+              {t("demo.banner")}
+            </>
+          )}
         </span>
         <span className="banner-actions">
-          {hasChanges && (
+          {mode === "connected" && (
+            <button type="button" className="link" onClick={reset}>
+              {t("demo.disconnect")}
+            </button>
+          )}
+          {mode === "demo" && hasChanges && (
             <button type="button" className="link" onClick={reset}>
               {t("demo.reset")}
             </button>
@@ -98,7 +113,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
                 </h4>
               </nav>
               <h4 className="side-title">{t("side.projects")}</h4>
-              {demoProjects.map((p) => (
+              {projects.map((p) => (
                 <nav key={p.slug} className="side-group">
                   <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug)}>
                     <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
@@ -114,16 +129,33 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
         </aside>
 
         <main className="main" key={route.name === "demo" ? "home" : "slug" in route ? route.slug : "x"}>
-          {route.name === "demo" && <Home notes={results} query={query} tag={route.tag} type={route.type} />}
-          {route.name === "note" &&
+          {status === "loading" && <p className="muted">{t("ws.loading")}</p>}
+          {status === "error" && (
+            <p className="muted">
+              {t("ws.error")} {error}{" "}
+              <button type="button" className="link" onClick={reload}>
+                {t("ws.retry")}
+              </button>
+            </p>
+          )}
+          {status === "ready" && mode === "connected" && notes.length === 0 && route.name === "demo" && (
+            <p className="muted">
+              {t("ws.empty")}{" "}
+              <a href={`${REPO_URL}/blob/main/docs/FORMAT.md`} target="_blank" rel="noreferrer noopener">
+                {t("ws.format")}
+              </a>
+            </p>
+          )}
+          {status === "ready" && route.name === "demo" && <Home notes={results} projects={projects} query={query} tag={route.tag} type={route.type} />}
+          {status === "ready" && route.name === "note" &&
             (note ? (
-              <NoteView key={note.slug} note={note} notes={notes} titles={titles} onSave={save} />
+              <NoteView key={note.slug} note={note} notes={notes} projects={projects} titles={titles} onSave={save} />
             ) : (
               <p className="muted">{t("note.missing")} <a href="#/demo">{t("back")}</a></p>
             ))}
-          {route.name === "project" &&
+          {status === "ready" && route.name === "project" &&
             (project ? (
-              <ProjectView project={project} notes={notes} titles={titles} />
+              <ProjectView project={project} notes={notes} projects={projects} titles={titles} />
             ) : (
               <p className="muted">{t("project.missing")} <a href="#/demo">{t("back")}</a></p>
             ))}
@@ -137,9 +169,9 @@ function typeLabel(t: (key: Key) => string, type: NoteType): string {
   return t(`type.${type}` as Key);
 }
 
-function NoteRow({ n }: { n: Note }) {
+function NoteRow({ n, allProjects }: { n: Note; allProjects: Project[] }) {
   const { t } = useI18n();
-  const projects = demoProjects.filter((p) => n.projects.includes(p.slug));
+  const projects = allProjects.filter((p) => n.projects.includes(p.slug));
   return (
     <a className="row" href={noteHref(n.slug)}>
       <span className={`kind kind-${n.type}`}>{typeLabel(t, n.type)}</span>
@@ -155,7 +187,7 @@ function NoteRow({ n }: { n: Note }) {
   );
 }
 
-function Home({ notes, query, tag, type }: { notes: Note[]; query: string; tag?: string; type?: string }) {
+function Home({ notes, projects, query, tag, type }: { notes: Note[]; projects: Project[]; query: string; tag?: string; type?: string }) {
   const { t } = useI18n();
   const allTags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
   const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
@@ -173,7 +205,7 @@ function Home({ notes, query, tag, type }: { notes: Note[]; query: string; tag?:
           <a key={tg} className={tag === tg ? "chip tag on" : "chip tag"} href={tag === tg ? "#/demo" : tagHref(tg)}>#{tg}</a>
         ))}
       </div>
-      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
+      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} />)}</div>
       {!shown.length && <p className="muted">{t("home.noMatch")}</p>}
     </>
   );
@@ -182,19 +214,23 @@ function Home({ notes, query, tag, type }: { notes: Note[]; query: string; tag?:
 function NoteView({
   note,
   notes,
+  projects,
   titles,
   onSave,
 }: {
   note: Note;
   notes: Note[];
+  projects: Project[];
   titles: Map<string, string>;
-  onSave: (slug: string, raw: string) => void;
+  onSave: (slug: string, raw: string) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(() => window.location.hash.endsWith("?edit"));
   const [draft, setDraft] = useState(note.raw);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string>();
   const deferred = useDeferredValue(editing ? splitFrontmatter(draft).body : note.body);
-  const noteProjects = demoProjects.filter((p) => note.projects.includes(p.slug));
+  const noteProjects = projects.filter((p) => note.projects.includes(p.slug));
   const repo = noteProjects.find((p) => p.repo)?.repo;
   const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo, t }), [titles, repo, t]);
   const linkedFrom = useMemo(() => backlinks(notes, note.slug), [notes, note.slug]);
@@ -203,9 +239,17 @@ function NoteView({
     setDraft(note.raw);
     setEditing(true);
   };
-  const saveEdit = () => {
-    onSave(note.slug, draft);
-    setEditing(false);
+  const saveEdit = async () => {
+    setSaving(true);
+    setSaveError(undefined);
+    try {
+      await onSave(note.slug, draft);
+      setEditing(false);
+    } catch (err) {
+      setSaveError(err instanceof GitHubError && err.status === 409 ? t("note.conflict") : `${t("note.saveError")} ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -229,8 +273,8 @@ function NoteView({
           <span className="spacer" />
           {editing ? (
             <>
-              <button type="button" className="btn primary small" onClick={saveEdit}>{t("note.save")}</button>
-              <button type="button" className="btn small" onClick={() => setEditing(false)}>{t("note.cancel")}</button>
+              <button type="button" className="btn primary small" onClick={saveEdit} disabled={saving}>{saving ? t("note.saving") : t("note.save")}</button>
+              <button type="button" className="btn small" onClick={() => setEditing(false)} disabled={saving}>{t("note.cancel")}</button>
             </>
           ) : (
             <button type="button" className="btn small" onClick={startEdit}>{t("note.edit")}</button>
@@ -238,6 +282,7 @@ function NoteView({
         </div>
       </header>
 
+      {saveError && <p className="error" role="alert">{saveError}</p>}
       {editing ? (
         <div className="editor">
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label={t("note.source")} />
@@ -259,7 +304,7 @@ function NoteView({
   );
 }
 
-function ProjectView({ project, notes, titles }: { project: Project; notes: Note[]; titles: Map<string, string> }) {
+function ProjectView({ project, notes, projects, titles }: { project: Project; notes: Note[]; projects: Project[]; titles: Map<string, string> }) {
   const { t } = useI18n();
   const projectNotes = notes.filter((n) => n.projects.includes(project.slug));
   const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo: project.repo, t }), [titles, project.repo, t]);
@@ -278,7 +323,7 @@ function ProjectView({ project, notes, titles }: { project: Project; notes: Note
       </header>
       <Markdown source={project.body} options={options} />
       <h2 className="section-title">{t("project.notes")}</h2>
-      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
+      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} />)}</div>
       {!projectNotes.length && <p className="muted">{t("project.none")}</p>}
     </article>
   );

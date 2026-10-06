@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 export type Route =
   | { name: "landing" }
+  | { name: "connect" }
   | { name: "demo"; tag?: string; type?: string }
   | { name: "note"; slug: string }
   | { name: "project"; slug: string };
@@ -9,6 +10,7 @@ export type Route =
 export function parseHash(hash: string): Route {
   const [path, query = ""] = hash.replace(/^#\/?/, "").split("?");
   const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
+  if (parts[0] === "connect") return { name: "connect" };
   if (parts[0] !== "demo") return { name: "landing" };
   if (parts[1] === "notes" && parts[2]) return { name: "note", slug: parts[2] };
   if (parts[1] === "projects" && parts[2]) return { name: "project", slug: parts[2] };
