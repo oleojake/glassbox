@@ -34,41 +34,46 @@ export function Landing() {
       </header>
 
       <section className="hero">
-        <div className="hero-text">
-          <p className="eyebrow">Notes for developers who build with AI</p>
-          <h1>Understand the code your AI writes.</h1>
-          <p className="lead">
-            Glassbox turns what you learn into visual notes: diagrams, steps and code. Everything is plain Markdown,
-            stored in a GitHub repo you own.
-          </p>
-          <div className="cta">
-            <a className="btn primary" href="#/demo">
-              Try the demo
-            </a>
-            <a className="btn" href={REPO_URL} target="_blank" rel="noreferrer noopener">
-              View on GitHub
-            </a>
-          </div>
-          <p className="fineprint">No account needed for the demo. Your edits stay in your browser.</p>
+        <p className="eyebrow">Notes for developers who build with AI</p>
+        <h1>
+          Understand the code <span className="mark">your AI writes.</span>
+        </h1>
+        <p className="lead">
+          Glassbox keeps what you learn as clear, visual notes: diagrams, steps and code. They are plain Markdown files
+          in a GitHub repo you own.
+        </p>
+        <div className="cta">
+          <a className="btn primary" href="#/demo">
+            Try the demo
+          </a>
+          <a className="btn" href={REPO_URL} target="_blank" rel="noreferrer noopener">
+            View on GitHub
+          </a>
         </div>
-        <div className="hero-card" aria-hidden="true">
-          <div className="hero-card-title">Redux: action, dispatch, reducer</div>
-          <Markdown source={HERO_NOTE} options={heroOptions} />
-        </div>
+        <p className="fineprint">No account needed. In the demo, your edits stay in your browser.</p>
+      </section>
+
+      <section className="sample" aria-label="Example note">
+        <div className="sample-label">Concept · Redux</div>
+        <div className="sample-title">Action, dispatch, reducer</div>
+        <Markdown source={HERO_NOTE} options={heroOptions} />
       </section>
 
       <section className="features">
         <article>
-          <h3>Visual by default</h3>
-          <p>Animated diagrams, numbered steps, side-by-side comparisons and review cards, all from simple Markdown.</p>
+          <h3>Easy to scan</h3>
+          <p>Every note has a type, tags and an optional project, so you can find it again in seconds.</p>
         </article>
         <article>
           <h3>Your repo, your notes</h3>
-          <p>Each note is a file in a private GitHub repo. Every save is a commit, so you get history and backups for free.</p>
+          <p>Each note is a file in a private GitHub repo. Every save is a commit: history and backups included.</p>
         </article>
         <article>
           <h3>Ready for AI</h3>
-          <p>Drop an <code>INSTRUCTIONS.md</code> in your notes repo and any AI assistant can write notes in the right format.</p>
+          <p>
+            Put an <code>INSTRUCTIONS.md</code> in your notes repo and any AI assistant can write notes in the right
+            format.
+          </p>
         </article>
       </section>
 
@@ -82,7 +87,7 @@ export function Landing() {
             <strong>Write notes</strong> in the browser, or ask your AI to write them straight into the repo.
           </li>
           <li>
-            <strong>Read and review</strong> them in Glassbox, with search, links between notes and projects.
+            <strong>Read and review</strong> them in Glassbox, with search, tags and projects.
           </li>
         </ol>
         <p className="fineprint">GitHub sign-in is the next milestone. For now the demo runs fully in your browser.</p>

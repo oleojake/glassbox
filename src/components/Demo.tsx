@@ -1,11 +1,18 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { backlinks, demoProjects, searchNotes, splitFrontmatter, type Note, type Project } from "../lib/content";
-import { noteHref, projectHref, type Route } from "../lib/router";
+import { backlinks, demoProjects, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
+import { noteHref, projectHref, tagHref, typeHref, type Route } from "../lib/router";
 import { useNotes } from "../lib/useNotes";
 import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
 
 const NOTE_HREF = "#/demo/notes/";
+const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
+const TYPE_LABEL: Record<NoteType, string> = {
+  concept: "Concept",
+  recipe: "Recipe",
+  decision: "Decision",
+  reference: "Reference",
+};
 
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) {
   const { notes, save, create, reset, hasChanges } = useNotes();
@@ -27,12 +34,19 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
 
   const note = route.name === "note" ? notes.find((n) => n.slug === route.slug) : undefined;
   const project = route.name === "project" ? demoProjects.find((p) => p.slug === route.slug) : undefined;
+  const general = notes.filter((n) => n.projects.length === 0);
+
+  const link = (n: Note) => (
+    <a key={n.slug} href={noteHref(n.slug)} className={note?.slug === n.slug ? "active" : ""}>
+      {n.title}
+    </a>
+  );
 
   return (
     <div className="app">
       <div className="demo-banner">
         <span>
-          <strong>Demo mode.</strong> Changes stay in this browser. GitHub sync is coming next.
+          <strong>Demo.</strong> Your changes stay in this browser. GitHub sync is coming next.
         </span>
         <span className="banner-actions">
           {hasChanges && (
@@ -56,47 +70,54 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
             ref={searchRef}
             className="search"
             type="search"
-            placeholder="Search notes (Ctrl+K)"
+            placeholder="Search (Ctrl+K)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search notes"
           />
-          <div className="side-head">
-            <span>Notes</span>
-            <button
-              type="button"
-              className="link"
-              onClick={() => {
-                const slug = create();
-                window.location.hash = noteHref(slug) + "?edit";
-              }}
-            >
-              + New
-            </button>
-          </div>
-          <nav className="side-list">
-            {results.map((n) => (
-              <a key={n.slug} href={noteHref(n.slug)} className={note?.slug === n.slug ? "active" : ""}>
-                {n.title}
-              </a>
-            ))}
-            {!results.length && <p className="muted">No notes match.</p>}
-          </nav>
-          <div className="side-head">
-            <span>Projects</span>
-          </div>
-          <nav className="side-list">
-            {demoProjects.map((p) => (
-              <a key={p.slug} href={projectHref(p.slug)} className={project?.slug === p.slug ? "active" : ""}>
-                <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
-                {p.name}
-              </a>
-            ))}
-          </nav>
+          <button
+            type="button"
+            className="new"
+            onClick={() => {
+              const slug = create();
+              window.location.hash = noteHref(slug) + "?edit";
+            }}
+          >
+            + New note
+          </button>
+
+          {query ? (
+            <nav className="side-group">
+              <h4>Results</h4>
+              {results.map(link)}
+              {!results.length && <p className="muted">No notes match.</p>}
+            </nav>
+          ) : (
+            <>
+              <nav className="side-group">
+                <h4>
+                  <a href="#/demo">All notes</a>
+                  <span>{notes.length}</span>
+                </h4>
+              </nav>
+              <h4 className="side-title">Projects</h4>
+              {demoProjects.map((p) => (
+                <nav key={p.slug} className="side-group">
+                  <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug)}>
+                    <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
+                    {p.name}
+                  </a>
+                  {notes.filter((n) => n.projects.includes(p.slug)).map(link)}
+                </nav>
+              ))}
+              <h4 className="side-title">General</h4>
+              <nav className="side-group">{general.map(link)}</nav>
+            </>
+          )}
         </aside>
 
-        <main className="main">
-          {route.name === "demo" && <Home notes={results} query={query} />}
+        <main className="main" key={route.name === "demo" ? "home" : "slug" in route ? route.slug : "x"}>
+          {route.name === "demo" && <Home notes={results} query={query} tag={route.tag} type={route.type} />}
           {route.name === "note" &&
             (note ? (
               <NoteView key={note.slug} note={note} notes={notes} titles={titles} onSave={save} />
@@ -115,21 +136,42 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
   );
 }
 
-function Home({ notes, query }: { notes: Note[]; query: string }) {
+function NoteRow({ n }: { n: Note }) {
+  const projects = demoProjects.filter((p) => n.projects.includes(p.slug));
+  return (
+    <a className="row" href={noteHref(n.slug)}>
+      <span className={`kind kind-${n.type}`}>{TYPE_LABEL[n.type] ?? n.type}</span>
+      <span className="row-main">
+        <strong>{n.title}</strong>
+        <span className="row-summary">{n.summary}</span>
+        <span className="row-meta">
+          {projects.map((p) => p.name).join(", ") || "General"}
+          {n.tags.length > 0 && <> · {n.tags.map((t) => `#${t}`).join(" ")}</>}
+        </span>
+      </span>
+    </a>
+  );
+}
+
+function Home({ notes, query, tag, type }: { notes: Note[]; query: string; tag?: string; type?: string }) {
+  const allTags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
+  const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
   return (
     <>
-      <h1>{query ? `Results for "${query}"` : "All notes"}</h1>
-      <div className="cards">
-        {notes.map((n) => (
-          <a key={n.slug} className="card" href={noteHref(n.slug)}>
-            <span className={`pill type-${n.type}`}>{n.type}</span>
-            <h3>{n.title}</h3>
-            <p>{n.summary}</p>
-            <div className="tags">{n.tags.map((t) => <span key={t}>#{t}</span>)}</div>
-          </a>
+      <h1 className="page-title">{query ? `Results for “${query}”` : "All notes"}</h1>
+      <div className="filters" aria-label="Filter by type">
+        <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag) : "#/demo"}>All</a>
+        {TYPES.map((t) => (
+          <a key={t} className={type === t ? "chip on" : "chip"} href={typeHref(t)}>{TYPE_LABEL[t]}</a>
         ))}
       </div>
-      {!notes.length && <p className="muted">No notes match your search.</p>}
+      <div className="filters" aria-label="Filter by tag">
+        {allTags.map((t) => (
+          <a key={t} className={tag === t ? "chip tag on" : "chip tag"} href={tag === t ? "#/demo" : tagHref(t)}>#{t}</a>
+        ))}
+      </div>
+      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
+      {!shown.length && <p className="muted">No notes match these filters.</p>}
     </>
   );
 }
@@ -165,17 +207,22 @@ function NoteView({
   return (
     <article>
       <header className="note-head">
-        <span className={`pill type-${note.type}`}>{note.type}</span>
+        <div className="eyebrow-row">
+          <a className={`kind kind-${note.type}`} href={typeHref(note.type)}>{TYPE_LABEL[note.type] ?? note.type}</a>
+          {noteProjects.map((p) => (
+            <a key={p.slug} className="proj" href={projectHref(p.slug)}>
+              <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
+              {p.name}
+            </a>
+          ))}
+          {!noteProjects.length && <span className="proj muted">General</span>}
+        </div>
         <h1>{note.title}</h1>
         <p className="lead">{note.summary}</p>
         <div className="meta">
-          {note.tags.map((t) => <span key={t} className="tag">#{t}</span>)}
-          {noteProjects.map((p) => (
-            <a key={p.slug} className="tag project" href={projectHref(p.slug)}>{p.name}</a>
-          ))}
+          {note.tags.map((t) => <a key={t} className="chip tag" href={tagHref(t)}>#{t}</a>)}
           {note.updated && <span className="muted">Updated {note.updated}</span>}
-        </div>
-        <div className="actions">
+          <span className="spacer" />
           {editing ? (
             <>
               <button type="button" className="btn primary small" onClick={saveEdit}>Save</button>
@@ -214,25 +261,19 @@ function ProjectView({ project, notes, titles }: { project: Project; notes: Note
   return (
     <article>
       <header className="note-head">
-        <span className="pill" style={{ background: project.color ?? "var(--accent)" }}>{project.status}</span>
+        <div className="eyebrow-row">
+          <span className="kind kind-project">Project · {project.status}</span>
+        </div>
         <h1>{project.name}</h1>
         <p className="lead">{project.description}</p>
         <div className="meta">
-          {project.stack.map((s) => <span key={s} className="tag">{s}</span>)}
-          {project.repo && <a className="tag project" href={project.repo} target="_blank" rel="noreferrer noopener">Repository</a>}
+          {project.stack.map((s) => <span key={s} className="chip">{s}</span>)}
+          {project.repo && <a className="chip tag" href={project.repo} target="_blank" rel="noreferrer noopener">Repository</a>}
         </div>
       </header>
       <Markdown source={project.body} options={options} />
-      <h2>Notes in this project</h2>
-      <div className="cards">
-        {projectNotes.map((n) => (
-          <a key={n.slug} className="card" href={noteHref(n.slug)}>
-            <span className={`pill type-${n.type}`}>{n.type}</span>
-            <h3>{n.title}</h3>
-            <p>{n.summary}</p>
-          </a>
-        ))}
-      </div>
+      <h2 className="section-title">Notes in this project</h2>
+      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
       {!projectNotes.length && <p className="muted">No notes linked to this project yet.</p>}
     </article>
   );

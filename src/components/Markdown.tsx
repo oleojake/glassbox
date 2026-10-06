@@ -7,10 +7,10 @@ function loadMermaid() {
   mermaidReady ??= import("mermaid").then(({ default: mermaid }) => {
     mermaid.initialize({
       startOnLoad: false,
-      theme: "dark",
+      theme: "neutral",
       securityLevel: "strict",
       fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, sans-serif",
-      themeVariables: { primaryColor: "#241f45", primaryBorderColor: "#8b7bff", lineColor: "#8b8fa3" },
+      themeVariables: { primaryColor: "#f1ece0", primaryBorderColor: "#b9b0a0", lineColor: "#8a8274", primaryTextColor: "#26231f" },
     });
     return mermaid;
   });
