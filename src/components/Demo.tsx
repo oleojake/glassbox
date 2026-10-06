@@ -2,19 +2,15 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { backlinks, demoProjects, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
 import { noteHref, projectHref, tagHref, typeHref, type Route } from "../lib/router";
 import { useNotes } from "../lib/useNotes";
+import { LangSwitch, useI18n, type Key } from "../lib/i18n";
 import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
 
 const NOTE_HREF = "#/demo/notes/";
 const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
-const TYPE_LABEL: Record<NoteType, string> = {
-  concept: "Concept",
-  recipe: "Recipe",
-  decision: "Decision",
-  reference: "Reference",
-};
 
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) {
+  const { t } = useI18n();
   const { notes, save, create, reset, hasChanges } = useNotes();
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -46,17 +42,18 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
     <div className="app">
       <div className="demo-banner">
         <span>
-          <strong>Demo.</strong> Your changes stay in this browser. GitHub sync is coming next.
+          <strong>{t("demo.label")}</strong>{t("demo.banner")}
         </span>
         <span className="banner-actions">
           {hasChanges && (
             <button type="button" className="link" onClick={reset}>
-              Reset demo
+              {t("demo.reset")}
             </button>
           )}
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
-            Get the code
+            {t("demo.getCode")}
           </a>
+          <LangSwitch />
         </span>
       </div>
 
@@ -70,10 +67,10 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
             ref={searchRef}
             className="search"
             type="search"
-            placeholder="Search (Ctrl+K)"
+            placeholder={t("side.search")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search notes"
+            aria-label={t("side.searchLabel")}
           />
           <button
             type="button"
@@ -83,24 +80,24 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
               window.location.hash = noteHref(slug) + "?edit";
             }}
           >
-            + New note
+            {t("side.new")}
           </button>
 
           {query ? (
             <nav className="side-group">
-              <h4>Results</h4>
+              <h4>{t("side.results")}</h4>
               {results.map(link)}
-              {!results.length && <p className="muted">No notes match.</p>}
+              {!results.length && <p className="muted">{t("side.noMatch")}</p>}
             </nav>
           ) : (
             <>
               <nav className="side-group">
                 <h4>
-                  <a href="#/demo">All notes</a>
+                  <a href="#/demo">{t("side.all")}</a>
                   <span>{notes.length}</span>
                 </h4>
               </nav>
-              <h4 className="side-title">Projects</h4>
+              <h4 className="side-title">{t("side.projects")}</h4>
               {demoProjects.map((p) => (
                 <nav key={p.slug} className="side-group">
                   <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug)}>
@@ -110,7 +107,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
                   {notes.filter((n) => n.projects.includes(p.slug)).map(link)}
                 </nav>
               ))}
-              <h4 className="side-title">General</h4>
+              <h4 className="side-title">{t("side.general")}</h4>
               <nav className="side-group">{general.map(link)}</nav>
             </>
           )}
@@ -122,13 +119,13 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
             (note ? (
               <NoteView key={note.slug} note={note} notes={notes} titles={titles} onSave={save} />
             ) : (
-              <p className="muted">That note doesn't exist. <a href="#/demo">Back to all notes</a></p>
+              <p className="muted">{t("note.missing")} <a href="#/demo">{t("back")}</a></p>
             ))}
           {route.name === "project" &&
             (project ? (
               <ProjectView project={project} notes={notes} titles={titles} />
             ) : (
-              <p className="muted">That project doesn't exist. <a href="#/demo">Back to all notes</a></p>
+              <p className="muted">{t("project.missing")} <a href="#/demo">{t("back")}</a></p>
             ))}
         </main>
       </div>
@@ -136,17 +133,22 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" }> }) 
   );
 }
 
+function typeLabel(t: (key: Key) => string, type: NoteType): string {
+  return t(`type.${type}` as Key);
+}
+
 function NoteRow({ n }: { n: Note }) {
+  const { t } = useI18n();
   const projects = demoProjects.filter((p) => n.projects.includes(p.slug));
   return (
     <a className="row" href={noteHref(n.slug)}>
-      <span className={`kind kind-${n.type}`}>{TYPE_LABEL[n.type] ?? n.type}</span>
+      <span className={`kind kind-${n.type}`}>{typeLabel(t, n.type)}</span>
       <span className="row-main">
         <strong>{n.title}</strong>
         <span className="row-summary">{n.summary}</span>
         <span className="row-meta">
-          {projects.map((p) => p.name).join(", ") || "General"}
-          {n.tags.length > 0 && <> · {n.tags.map((t) => `#${t}`).join(" ")}</>}
+          {projects.map((p) => p.name).join(", ") || t("side.general")}
+          {n.tags.length > 0 && <> · {n.tags.map((tg) => `#${tg}`).join(" ")}</>}
         </span>
       </span>
     </a>
@@ -154,24 +156,25 @@ function NoteRow({ n }: { n: Note }) {
 }
 
 function Home({ notes, query, tag, type }: { notes: Note[]; query: string; tag?: string; type?: string }) {
+  const { t } = useI18n();
   const allTags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
   const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
   return (
     <>
-      <h1 className="page-title">{query ? `Results for “${query}”` : "All notes"}</h1>
-      <div className="filters" aria-label="Filter by type">
-        <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag) : "#/demo"}>All</a>
-        {TYPES.map((t) => (
-          <a key={t} className={type === t ? "chip on" : "chip"} href={typeHref(t)}>{TYPE_LABEL[t]}</a>
+      <h1 className="page-title">{query ? `${t("home.resultsFor")} “${query}”` : t("home.title")}</h1>
+      <div className="filters" aria-label={t("home.filterType")}>
+        <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag) : "#/demo"}>{t("home.all")}</a>
+        {TYPES.map((ty) => (
+          <a key={ty} className={type === ty ? "chip on" : "chip"} href={typeHref(ty)}>{typeLabel(t, ty)}</a>
         ))}
       </div>
-      <div className="filters" aria-label="Filter by tag">
-        {allTags.map((t) => (
-          <a key={t} className={tag === t ? "chip tag on" : "chip tag"} href={tag === t ? "#/demo" : tagHref(t)}>#{t}</a>
+      <div className="filters" aria-label={t("home.filterTag")}>
+        {allTags.map((tg) => (
+          <a key={tg} className={tag === tg ? "chip tag on" : "chip tag"} href={tag === tg ? "#/demo" : tagHref(tg)}>#{tg}</a>
         ))}
       </div>
       <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
-      {!shown.length && <p className="muted">No notes match these filters.</p>}
+      {!shown.length && <p className="muted">{t("home.noMatch")}</p>}
     </>
   );
 }
@@ -187,12 +190,13 @@ function NoteView({
   titles: Map<string, string>;
   onSave: (slug: string, raw: string) => void;
 }) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(() => window.location.hash.endsWith("?edit"));
   const [draft, setDraft] = useState(note.raw);
   const deferred = useDeferredValue(editing ? splitFrontmatter(draft).body : note.body);
   const noteProjects = demoProjects.filter((p) => note.projects.includes(p.slug));
   const repo = noteProjects.find((p) => p.repo)?.repo;
-  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo }), [titles, repo]);
+  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo, t }), [titles, repo, t]);
   const linkedFrom = useMemo(() => backlinks(notes, note.slug), [notes, note.slug]);
 
   const startEdit = () => {
@@ -208,35 +212,35 @@ function NoteView({
     <article>
       <header className="note-head">
         <div className="eyebrow-row">
-          <a className={`kind kind-${note.type}`} href={typeHref(note.type)}>{TYPE_LABEL[note.type] ?? note.type}</a>
+          <a className={`kind kind-${note.type}`} href={typeHref(note.type)}>{typeLabel(t, note.type)}</a>
           {noteProjects.map((p) => (
             <a key={p.slug} className="proj" href={projectHref(p.slug)}>
               <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
               {p.name}
             </a>
           ))}
-          {!noteProjects.length && <span className="proj muted">General</span>}
+          {!noteProjects.length && <span className="proj muted">{t("side.general")}</span>}
         </div>
         <h1>{note.title}</h1>
         <p className="lead">{note.summary}</p>
         <div className="meta">
-          {note.tags.map((t) => <a key={t} className="chip tag" href={tagHref(t)}>#{t}</a>)}
-          {note.updated && <span className="muted">Updated {note.updated}</span>}
+          {note.tags.map((tg) => <a key={tg} className="chip tag" href={tagHref(tg)}>#{tg}</a>)}
+          {note.updated && <span className="muted">{t("note.updated")} {note.updated}</span>}
           <span className="spacer" />
           {editing ? (
             <>
-              <button type="button" className="btn primary small" onClick={saveEdit}>Save</button>
-              <button type="button" className="btn small" onClick={() => setEditing(false)}>Cancel</button>
+              <button type="button" className="btn primary small" onClick={saveEdit}>{t("note.save")}</button>
+              <button type="button" className="btn small" onClick={() => setEditing(false)}>{t("note.cancel")}</button>
             </>
           ) : (
-            <button type="button" className="btn small" onClick={startEdit}>Edit</button>
+            <button type="button" className="btn small" onClick={startEdit}>{t("note.edit")}</button>
           )}
         </div>
       </header>
 
       {editing ? (
         <div className="editor">
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label="Markdown source" />
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label={t("note.source")} />
           <div className="editor-preview">
             <Markdown source={deferred} options={options} />
           </div>
@@ -247,7 +251,7 @@ function NoteView({
 
       {!editing && linkedFrom.length > 0 && (
         <footer className="backlinks">
-          <h4>Mentioned in</h4>
+          <h4>{t("note.mentioned")}</h4>
           {linkedFrom.map((n) => <a key={n.slug} href={noteHref(n.slug)}>{n.title}</a>)}
         </footer>
       )}
@@ -256,25 +260,26 @@ function NoteView({
 }
 
 function ProjectView({ project, notes, titles }: { project: Project; notes: Note[]; titles: Map<string, string> }) {
+  const { t } = useI18n();
   const projectNotes = notes.filter((n) => n.projects.includes(project.slug));
-  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo: project.repo }), [titles, project.repo]);
+  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo: project.repo, t }), [titles, project.repo, t]);
   return (
     <article>
       <header className="note-head">
         <div className="eyebrow-row">
-          <span className="kind kind-project">Project · {project.status}</span>
+          <span className="kind kind-project">{t("project.label")} · {t(`status.${project.status}` as Key)}</span>
         </div>
         <h1>{project.name}</h1>
         <p className="lead">{project.description}</p>
         <div className="meta">
           {project.stack.map((s) => <span key={s} className="chip">{s}</span>)}
-          {project.repo && <a className="chip tag" href={project.repo} target="_blank" rel="noreferrer noopener">Repository</a>}
+          {project.repo && <a className="chip tag" href={project.repo} target="_blank" rel="noreferrer noopener">{t("project.repo")}</a>}
         </div>
       </header>
       <Markdown source={project.body} options={options} />
-      <h2 className="section-title">Notes in this project</h2>
+      <h2 className="section-title">{t("project.notes")}</h2>
       <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} />)}</div>
-      {!projectNotes.length && <p className="muted">No notes linked to this project yet.</p>}
+      {!projectNotes.length && <p className="muted">{t("project.none")}</p>}
     </article>
   );
 }

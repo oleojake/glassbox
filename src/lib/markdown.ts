@@ -11,6 +11,7 @@ import yaml from "highlight.js/lib/languages/yaml";
 import php from "highlight.js/lib/languages/php";
 import markdown from "highlight.js/lib/languages/markdown";
 import { parse as parseYaml } from "yaml";
+import type { Key } from "./i18n";
 
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("javascript", javascript);
@@ -34,20 +35,15 @@ export interface RenderOptions {
   noteHref: string;
   /** Project repo URL; when set, paths in `files` blocks link to GitHub. */
   repo?: string;
+  /** Translates UI strings that end up inside the rendered HTML. */
+  t: (key: Key) => string;
 }
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const CALLOUTS: Record<string, string> = {
-  remember: "Remember",
-  when: "When to use",
-  note: "Note",
-  tip: "Tip",
-  important: "Important",
-  warning: "Warning",
-  caution: "Caution",
-};
+const CALLOUTS = ["remember", "when", "note", "tip", "important", "warning", "caution"] as const;
+type CalloutKind = (typeof CALLOUTS)[number];
 
 function splitLang(info: string | undefined): { lang: string; title?: string } {
   const text = info ?? "";
@@ -61,13 +57,13 @@ function highlight(code: string, lang: string): string {
   return escapeHtml(code);
 }
 
-function codeFigure(code: string, info: string | undefined, tabbed = false): string {
+function codeFigure(code: string, info: string | undefined, copyLabel: string, tabbed = false): string {
   const { lang, title } = splitLang(info);
   const head = title || lang
     ? `<figcaption><span>${escapeHtml(title ?? lang)}</span></figcaption>`
     : "";
   const body = `<pre><code class="hljs">${highlight(code, lang)}</code></pre>`;
-  const copy = `<button class="copy" type="button" aria-label="Copy code">Copy</button>`;
+  const copy = `<button class="copy" type="button" aria-label="${escapeHtml(copyLabel)}">${escapeHtml(copyLabel)}</button>`;
   return `<figure class="code${tabbed ? " in-tab" : ""}">${tabbed ? "" : head}${copy}${body}</figure>`;
 }
 
@@ -109,7 +105,7 @@ function renderFiles(source: string, repo?: string): string {
   return `<ul class="files">${lis}</ul>`;
 }
 
-function renderTabs(inner: string, md: Marked): string {
+function renderTabs(inner: string, md: Marked, copyLabel: string): string {
   const blocks = Lexer.lex(inner).filter((t): t is Tokens.Code => t.type === "code");
   if (!blocks.length) return md.parse(inner) as string;
   const names = blocks.map((b) => {
@@ -120,7 +116,7 @@ function renderTabs(inner: string, md: Marked): string {
     .map((n, i) => `<button type="button" class="tab${i === 0 ? " active" : ""}" data-tab="${i}">${escapeHtml(n)}</button>`)
     .join("");
   const panes = blocks
-    .map((b, i) => `<div class="tab-pane${i === 0 ? " active" : ""}" data-pane="${i}">${codeFigure(b.text, b.lang, true)}</div>`)
+    .map((b, i) => `<div class="tab-pane${i === 0 ? " active" : ""}" data-pane="${i}">${codeFigure(b.text, b.lang, copyLabel, true)}</div>`)
     .join("");
   return `<div class="tabs"><div class="tab-bar">${bar}</div>${panes}</div>`;
 }
@@ -144,7 +140,7 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
           const label = escapeHtml(String(token.label === slug && known ? options.titles.get(slug) : token.label));
           return known
             ? `<a class="wikilink" href="${options.noteHref}${encodeURIComponent(slug)}">${label}</a>`
-            : `<span class="wikilink broken" title="No note named ${escapeHtml(slug)}">${label}</span>`;
+            : `<span class="wikilink broken" title="${escapeHtml(options.t("link.broken"))} ${escapeHtml(slug)}">${label}</span>`;
         },
       },
     ],
@@ -154,14 +150,14 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
         if (l === "mermaid") return `<div class="diagram"><pre class="mermaid">${escapeHtml(text)}</pre></div>`;
         if (l === "steps") return renderSteps(text, md);
         if (l === "files") return renderFiles(text, options.repo);
-        return codeFigure(text, lang);
+        return codeFigure(text, lang, options.t("code.copy"));
       },
       blockquote(token) {
         const match = /^\[!(\w+)\][ \t]*\n?/.exec(token.text);
-        const kind = match?.[1].toLowerCase();
-        if (!match || !kind || !(kind in CALLOUTS)) return false;
+        const kind = match?.[1].toLowerCase() as CalloutKind | undefined;
+        if (!match || !kind || !CALLOUTS.includes(kind)) return false;
         const inner = this.parser.parse(Lexer.lex(token.text.slice(match[0].length), this.parser.options));
-        return `<aside class="callout callout-${kind}"><div class="callout-title">${CALLOUTS[kind]}</div>${inner}</aside>`;
+        return `<aside class="callout callout-${kind}"><div class="callout-title">${options.t(`callout.${kind}`)}</div>${inner}</aside>`;
       },
       table(token) {
         if (token.header[0]?.text.trim().toLowerCase() !== "vs") return false;
@@ -182,7 +178,7 @@ export function renderMarkdown(source: string, options: RenderOptions): string {
   // Split out <!-- tabs --> groups so their code blocks render as tabs.
   const parts = source.split(/<!--\s*tabs\s*-->([\s\S]*?)<!--\s*\/tabs\s*-->/);
   const html = parts
-    .map((part, i) => (i % 2 === 1 ? renderTabs(part, md) : (md.parse(part) as string)))
+    .map((part, i) => (i % 2 === 1 ? renderTabs(part, md, options.t("code.copy")) : (md.parse(part) as string)))
     .join("");
   return DOMPurify.sanitize(html, { ADD_ATTR: ["target"] });
 }

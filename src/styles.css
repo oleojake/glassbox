@@ -230,3 +230,8 @@ a.kind:hover { text-decoration: underline; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .mark, .callout-remember strong { background-size: 100% 42%; }
 }
+
+.lang { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+.lang button { background: none; border: 0; padding: .05rem .6rem; font-size: .75rem; font-weight: 600; color: var(--muted); }
+.lang button.on { background: var(--text); color: var(--bg); }
+.topbar nav { align-items: center; }

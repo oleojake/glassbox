@@ -1,7 +1,10 @@
+import { useMemo } from "react";
+import { LangSwitch, useI18n } from "../lib/i18n";
 import { Markdown } from "./Markdown";
 
 export const REPO_URL = "https://github.com/oleojake/glassbox";
 
+// Sample note content stays in English: it is note content, not interface text.
 const HERO_NOTE = `> [!REMEMBER]
 > **dispatch** announces that something happened. The **reducer** decides the new state.
 
@@ -15,9 +18,10 @@ const HERO_NOTE = `> [!REMEMBER]
 \`\`\`
 `;
 
-const heroOptions = { titles: new Map<string, string>(), noteHref: "#/demo/notes/" };
-
 export function Landing() {
+  const { t } = useI18n();
+  const heroOptions = useMemo(() => ({ titles: new Map<string, string>(), noteHref: "#/demo/notes/", t }), [t]);
+
   return (
     <div className="landing">
       <header className="topbar">
@@ -26,75 +30,76 @@ export function Landing() {
           Glassbox
         </a>
         <nav>
-          <a href="#/demo">Demo</a>
+          <a href="#/demo">{t("nav.demo")}</a>
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
-            GitHub
+            {t("nav.github")}
           </a>
+          <LangSwitch />
         </nav>
       </header>
 
       <section className="hero">
-        <p className="eyebrow">Notes for developers who build with AI</p>
+        <p className="eyebrow">{t("landing.eyebrow")}</p>
         <h1>
-          Understand the code <span className="mark">your AI writes.</span>
+          {t("landing.h1a")}
+          <span className="mark">{t("landing.h1b")}</span>
         </h1>
-        <p className="lead">
-          Glassbox keeps what you learn as clear, visual notes: diagrams, steps and code. They are plain Markdown files
-          in a GitHub repo you own.
-        </p>
+        <p className="lead">{t("landing.lead")}</p>
         <div className="cta">
           <a className="btn primary" href="#/demo">
-            Try the demo
+            {t("landing.try")}
           </a>
           <a className="btn" href={REPO_URL} target="_blank" rel="noreferrer noopener">
-            View on GitHub
+            {t("landing.viewGithub")}
           </a>
         </div>
-        <p className="fineprint">No account needed. In the demo, your edits stay in your browser.</p>
+        <p className="fineprint">{t("landing.fine")}</p>
       </section>
 
       <section className="sample" aria-label="Example note">
-        <div className="sample-label">Concept · Redux</div>
+        <div className="sample-label">
+          {t("type.concept")} · {t("landing.sampleExample")}
+        </div>
         <div className="sample-title">Action, dispatch, reducer</div>
         <Markdown source={HERO_NOTE} options={heroOptions} />
       </section>
 
       <section className="features">
         <article>
-          <h3>Easy to scan</h3>
-          <p>Every note has a type, tags and an optional project, so you can find it again in seconds.</p>
+          <h3>{t("landing.f1.title")}</h3>
+          <p>{t("landing.f1.text")}</p>
         </article>
         <article>
-          <h3>Your repo, your notes</h3>
-          <p>Each note is a file in a private GitHub repo. Every save is a commit: history and backups included.</p>
+          <h3>{t("landing.f2.title")}</h3>
+          <p>{t("landing.f2.text")}</p>
         </article>
         <article>
-          <h3>Ready for AI</h3>
-          <p>
-            Put an <code>INSTRUCTIONS.md</code> in your notes repo and any AI assistant can write notes in the right
-            format.
-          </p>
+          <h3>{t("landing.f3.title")}</h3>
+          <p>{t("landing.f3.text")}</p>
         </article>
       </section>
 
       <section className="how">
-        <h2>How it works</h2>
+        <h2>{t("landing.how")}</h2>
         <ol>
           <li>
-            <strong>Copy the template.</strong> You get a private notes repo with the format and AI instructions inside.
+            <strong>{t("landing.s1.b")}</strong>
+            {t("landing.s1.t")}
           </li>
           <li>
-            <strong>Write notes</strong> in the browser, or ask your AI to write them straight into the repo.
+            <strong>{t("landing.s2.b")}</strong>
+            {t("landing.s2.t")}
           </li>
           <li>
-            <strong>Read and review</strong> them in Glassbox, with search, tags and projects.
+            <strong>{t("landing.s3.b")}</strong>
+            {t("landing.s3.t")}
           </li>
         </ol>
-        <p className="fineprint">GitHub sign-in is the next milestone. For now the demo runs fully in your browser.</p>
+        <p className="fineprint">{t("landing.next")}</p>
       </section>
 
       <footer className="footer">
-        <span>Open source, free to use and copy.</span>
+        <span>{t("landing.footer")}</span>
         <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
           github.com/oleojake/glassbox
         </a>

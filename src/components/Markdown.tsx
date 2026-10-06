@@ -24,8 +24,8 @@ interface Props {
 
 export function Markdown({ source, options }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const { titles, noteHref, repo } = options;
-  const html = useMemo(() => renderMarkdown(source, { titles, noteHref, repo }), [source, titles, noteHref, repo]);
+  const { titles, noteHref, repo, t } = options;
+  const html = useMemo(() => renderMarkdown(source, { titles, noteHref, repo, t }), [source, titles, noteHref, repo, t]);
 
   useEffect(() => {
     const nodes = ref.current?.querySelectorAll<HTMLElement>("pre.mermaid");
@@ -56,8 +56,8 @@ export function Markdown({ source, options }: Props) {
       const code = copy.parentElement?.querySelector("code")?.textContent ?? "";
       navigator.clipboard?.writeText(code).then(
         () => {
-          copy.textContent = "Copied";
-          setTimeout(() => (copy.textContent = "Copy"), 1500);
+          copy.textContent = t("code.copied");
+          setTimeout(() => (copy.textContent = t("code.copy")), 1500);
         },
         () => undefined,
       );
