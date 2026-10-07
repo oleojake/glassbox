@@ -260,3 +260,7 @@ a.kind:hover { text-decoration: underline; }
 .ai-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty .ai-guide { max-width: 420px; }
 .empty { margin-bottom: 2rem; }
+.btn.danger { color: #a33; }
+.btn.danger:hover { background: #fbeaea; border-color: #a33; }
+.ai-steps { margin: 0 0 10px; padding-left: 1.1rem; color: var(--muted); }
+.ai-steps li { margin-bottom: 4px; }

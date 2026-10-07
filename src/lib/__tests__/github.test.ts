@@ -58,6 +58,13 @@ describe("client", () => {
     expect(decodeBase64Utf8(body.content)).toBe("hola ñ");
   });
 
+  it("deletes a file as a commit", async () => {
+    const { impl, calls } = fakeFetch(() => ({ body: {} }));
+    await createGitHubClient("t", impl).deleteFile(ref, { path: "notes/a.md", message: "note: delete a", branch: "main", sha: "old" });
+    expect(calls[0].init!.method).toBe("DELETE");
+    expect(JSON.parse(calls[0].init!.body as string)).toEqual({ message: "note: delete a", branch: "main", sha: "old" });
+  });
+
   it("surfaces API errors with their status", async () => {
     const { impl } = fakeFetch(() => ({ status: 409, body: { message: "conflict" } }));
     await expect(createGitHubClient("t", impl).writeFile(ref, { path: "notes/a.md", content: "x", message: "m", branch: "main" })).rejects.toMatchObject({ status: 409 });

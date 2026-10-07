@@ -13,7 +13,7 @@ const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" }> }) {
   const { t } = useI18n();
   const scope: Scope = route.scope;
-  const { mode, connected, repo, status, error, notes, projects, save, create, reset, reload, hasChanges } = useWorkspace(scope);
+  const { mode, connected, repo, status, error, notes, projects, save, create, remove, createProject, reset, reload, hasChanges } = useWorkspace(scope);
   useEffect(() => {
     if (scope === "mine" && !connected) window.location.hash = "#/connect";
   }, [scope, connected]);
@@ -110,6 +110,24 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
             {t("side.new")}
           </button>
 
+          {createProject && (
+            <button
+              type="button"
+              className="new"
+              onClick={async () => {
+                const name = window.prompt(t("side.newProjectPrompt"))?.trim();
+                if (!name) return;
+                try {
+                  window.location.hash = projectHref(await createProject(name), scope);
+                } catch (err) {
+                  window.alert(`${t("note.saveError")} ${err instanceof Error ? err.message : String(err)}`);
+                }
+              }}
+            >
+              {t("side.newProject")}
+            </button>
+          )}
+
           {query ? (
             <nav className="side-group">
               <h4>{t("side.results")}</h4>
@@ -138,7 +156,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
               <nav className="side-group">{general.map(link)}</nav>
             </>
           )}
-          {scope === "mine" && notes.length > 0 && <AiGuide />}
+          {scope === "mine" && notes.length > 0 && <AiGuide repo={repo ?? ""} />}
         </aside>
 
         <main className="main" key={route.name === "demo" ? "home" : "slug" in route ? route.slug : "x"}>
@@ -154,13 +172,13 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
           {status === "ready" && scope === "mine" && notes.length === 0 && route.name === "demo" && (
             <div className="empty">
               <p>{t("ws.empty")}</p>
-              <AiGuide />
+              <AiGuide repo={repo ?? ""} />
             </div>
           )}
           {status === "ready" && route.name === "demo" && <Home scope={scope} notes={results} projects={projects} query={query} tag={route.tag} type={route.type} />}
           {status === "ready" && route.name === "note" &&
             (note ? (
-              <NoteView key={note.slug} scope={scope} note={note} notes={notes} projects={projects} titles={titles} onSave={save} />
+              <NoteView key={note.slug} scope={scope} note={note} notes={notes} projects={projects} titles={titles} onSave={save} onDelete={remove} />
             ) : (
               <p className="muted">{t("note.missing")} <a href={homeHref(scope)}>{t("back")}</a></p>
             ))}
@@ -229,6 +247,7 @@ function NoteView({
   projects,
   titles,
   onSave,
+  onDelete,
 }: {
   scope: Scope;
   note: Note;
@@ -236,6 +255,7 @@ function NoteView({
   projects: Project[];
   titles: Map<string, string>;
   onSave: (slug: string, raw: string) => Promise<void>;
+  onDelete?: (slug: string) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(() => window.location.hash.endsWith("?edit"));
@@ -265,6 +285,16 @@ function NoteView({
     }
   };
 
+  const deleteNote = async () => {
+    if (!onDelete || !window.confirm(t("note.deleteConfirm"))) return;
+    try {
+      await onDelete(note.slug);
+      window.location.hash = homeHref(scope);
+    } catch (err) {
+      setSaveError(`${t("note.saveError")} ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   return (
     <article>
       <header className="note-head">
@@ -290,7 +320,10 @@ function NoteView({
               <button type="button" className="btn small" onClick={() => setEditing(false)} disabled={saving}>{t("note.cancel")}</button>
             </>
           ) : (
-            <button type="button" className="btn small" onClick={startEdit}>{t("note.edit")}</button>
+            <>
+              <button type="button" className="btn small" onClick={startEdit}>{t("note.edit")}</button>
+              {onDelete && <button type="button" className="btn small danger" onClick={deleteNote}>{t("note.delete")}</button>}
+            </>
           )}
         </div>
       </header>

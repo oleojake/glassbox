@@ -108,6 +108,14 @@ export function createGitHubClient(token: string, fetchImpl: typeof fetch = (...
       });
       return data.content.sha;
     },
+
+    /** Deletes a file as one commit. */
+    async deleteFile(ref: RepoRef, args: { path: string; message: string; branch: string; sha: string }): Promise<void> {
+      await request(`${base(ref)}/contents/${args.path}`, {
+        method: "DELETE",
+        body: JSON.stringify({ message: args.message, branch: args.branch, sha: args.sha }),
+      });
+    },
   };
 }
 
