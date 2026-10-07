@@ -280,3 +280,9 @@ a.kind:hover { text-decoration: underline; }
 .doc-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .doc-pair h4 { margin: 0 0 6px; font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
 @media (max-width: 760px) { .doc-pair { grid-template-columns: minmax(0, 1fr); } }
+.ai-tabs { display: flex; gap: 4px; margin: 6px 0 8px; }
+.ai-tabs button { border: 1px solid var(--border); background: var(--bg); color: var(--muted); padding: 3px 10px; border-radius: 999px; font: inherit; font-size: .8rem; }
+.ai-tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.ai-examples { margin: 4px 0 0; padding-left: 1.1rem; }
+.ai-examples li { margin-bottom: 6px; }
+.ai-examples code { font-size: .78rem; white-space: normal; word-break: break-word; }
