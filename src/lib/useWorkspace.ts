@@ -114,6 +114,40 @@ export function useWorkspace(scope: Scope) {
     return slug;
   }, [remote.notes]);
 
+  const removeRemote = useCallback(
+    async (slug: string) => {
+      if (!client || !ref) return;
+      const path = `notes/${slug}.md`;
+      const sha = remote.shas[path];
+      // A note that was never saved only exists in memory.
+      if (sha) await client.deleteFile(ref, { path, message: `note: delete ${slug}`, branch: remote.branch, sha });
+      setRemote((prev) => {
+        const { [path]: _gone, ...shas } = prev.shas;
+        return { ...prev, notes: prev.notes.filter((n) => n.slug !== slug), shas };
+      });
+    },
+    [client, ref, remote.shas, remote.branch],
+  );
+
+  const createProjectRemote = useCallback(
+    async (name: string): Promise<string> => {
+      if (!client || !ref) return "";
+      const base = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "project";
+      let slug = base;
+      for (let i = 2; remote.projects.some((p) => p.slug === slug); i++) slug = `${base}-${i}`;
+      const raw = `---\nname: ${JSON.stringify(name)}\ndescription: What this project is.\nstatus: active\nstack: []\n---\n`;
+      const path = `projects/${slug}.md`;
+      const newSha = await client.writeFile(ref, { path, content: raw, message: `project: add ${slug}`, branch: remote.branch });
+      setRemote((prev) => ({
+        ...prev,
+        projects: prev.projects.concat(parseProject(slug, raw)).sort((a, b) => a.name.localeCompare(b.name)),
+        shas: { ...prev.shas, [path]: newSha },
+      }));
+      return slug;
+    },
+    [client, ref, remote.projects, remote.branch],
+  );
+
   const disconnect = useCallback(() => {
     clearConnection();
     setConnection(null);
@@ -130,6 +164,8 @@ export function useWorkspace(scope: Scope) {
       projects: remote.projects,
       save: saveRemote,
       create: createRemote,
+      remove: removeRemote,
+      createProject: createProjectRemote,
       reset: disconnect,
       reload: () => setReloadKey((k) => k + 1),
       hasChanges: false,
@@ -145,6 +181,8 @@ export function useWorkspace(scope: Scope) {
     projects: demoProjects,
     save: async (slug: string, raw: string) => demo.save(slug, raw),
     create: demo.create,
+    remove: undefined,
+    createProject: undefined,
     reset: demo.reset,
     reload: () => undefined,
     hasChanges: demo.hasChanges,

@@ -1,6 +1,6 @@
 # Instructions for AI assistants writing Glassbox notes
 
-You are adding or editing notes in a Glassbox notes repository. Read `FORMAT.md` first; it is the source of truth for the file layout, frontmatter and special blocks.
+You are adding or editing notes in a Glassbox notes repository. The format reference below (FORMAT) is the source of truth for the file layout, frontmatter and special blocks; read it first.
 
 ## When the user asks you to save something as a note
 

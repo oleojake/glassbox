@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { useI18n } from "../lib/i18n";
-import instructions from "../../docs/INSTRUCTIONS.md?raw";
-import format from "../../docs/FORMAT.md?raw";
+import { buildSkill } from "../lib/aiSkill";
 
-// One self-contained file a user can hand to any AI assistant.
-const GUIDE = `${instructions}\n\n---\n\n${format}`;
 
-export function AiGuide() {
+export function AiGuide({ repo }: { repo: string }) {
   const { t } = useI18n();
+  const skill = buildSkill(repo);
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(GUIDE);
+      await navigator.clipboard.writeText(skill);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -22,11 +20,15 @@ export function AiGuide() {
     <div className="ai-guide">
       <h4>{t("ai.title")}</h4>
       <p>{t("ai.text")}</p>
+      <ol className="ai-steps">
+        <li>{t("ai.s1")}</li>
+        <li>{t("ai.s2")}</li>
+      </ol>
       <div className="ai-actions">
         <button type="button" className="btn small" onClick={copy}>
           {copied ? t("ai.copied") : t("ai.copy")}
         </button>
-        <a className="btn small" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(GUIDE)}`} download="GLASSBOX_AI_GUIDE.md">
+        <a className="btn small" href={`data:text/markdown;charset=utf-8,${encodeURIComponent(skill)}`} download="SKILL.md">
           {t("ai.download")}
         </a>
       </div>
