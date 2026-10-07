@@ -10,7 +10,7 @@ import { AiGuide } from "./AiGuide";
 
 const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
 
-export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" }> }) {
+export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" | "docs" }> }) {
   const { t } = useI18n();
   const scope: Scope = route.scope;
   const { mode, connected, repo, status, error, notes, projects, save, create, remove, createProject, reset, reload, hasChanges } = useWorkspace(scope);
@@ -48,7 +48,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
   );
 
   return (
-    <div className="app">
+    <div className={`app scope-${scope}`}>
       <div className={`demo-banner ${scope === "mine" ? "is-mine" : "is-demo"}`}>
         <span>
           {scope === "mine" ? (
@@ -156,6 +156,11 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
               <nav className="side-group">{general.map(link)}</nav>
             </>
           )}
+          {scope === "demo" && (
+            <a className="side-docs" href="#/demo/docs">
+              {t("demo.docsLink")}
+            </a>
+          )}
           {scope === "mine" && notes.length > 0 && <AiGuide repo={repo ?? ""} />}
         </aside>
 
@@ -222,6 +227,21 @@ function Home({ scope, notes, projects, query, tag, type }: { scope: Scope; note
   const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
   return (
     <>
+      {scope === "demo" && !query && !tag && !type && (
+        <section className="types-intro">
+          <h2>{t("demo.types")}</h2>
+          <p>{t("demo.typesIntro")}</p>
+          <div className="types-grid">
+            {TYPES.map((ty) => (
+              <a key={ty} href={typeHref(ty, scope)} className={`type-card kind-${ty}`}>
+                <strong>{typeLabel(t, ty)}</strong>
+                <span>{t(`type.${ty}.desc` as Key)}</span>
+              </a>
+            ))}
+          </div>
+          <a href="#/demo/docs">{t("demo.docsLink")} →</a>
+        </section>
+      )}
       <h1 className="page-title">{query ? `${t("home.resultsFor")} “${query}”` : t("home.title")}</h1>
       <div className="filters" aria-label={t("home.filterType")}>
         <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag, scope) : homeHref(scope)}>{t("home.all")}</a>
