@@ -77,19 +77,39 @@ export function parseProject(slug: string, raw: string): Project {
 }
 
 const slugOf = (path: string) => path.split("/").pop()!.replace(/\.md$/, "");
+/** "../../content/notes/a/b.md" -> "a/b" */
+const noteSlugOf = (path: string) => path.slice(path.indexOf("/notes/") + "/notes/".length).replace(/\.md$/, "");
 
-function load<T>(files: Record<string, string>, fn: (slug: string, raw: string) => T): T[] {
-  return Object.entries(files).map(([path, raw]) => fn(slugOf(path), raw));
+function load<T>(files: Record<string, string>, fn: (slug: string, raw: string) => T, slug = slugOf): T[] {
+  return Object.entries(files).map(([path, raw]) => fn(slug(path), raw));
 }
 
-export const demoNotes: Note[] = load(
-  import.meta.glob("../../content/notes/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>,
-  parseNote,
-);
+/** The project a note belongs to by its location: its first folder, when that is a project slug. */
+export const projectOfSlug = (slug: string, projects: Project[]): string | undefined => {
+  const first = slug.includes("/") ? slug.slice(0, slug.indexOf("/")) : "";
+  return projects.some((p) => p.slug === first) ? first : undefined;
+};
+
+/** Adds the project implied by the folder to each note's `projects` (the frontmatter list stays as extra links). */
+export function attachProjects(notes: Note[], projects: Project[]): Note[] {
+  return notes.map((n) => {
+    const own = projectOfSlug(n.slug, projects);
+    return own && !n.projects.includes(own) ? { ...n, projects: [own, ...n.projects] } : n;
+  });
+}
 
 export const demoProjects: Project[] = load(
   import.meta.glob("../../content/projects/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>,
   parseProject,
+);
+
+export const demoNotes: Note[] = attachProjects(
+  load(
+    import.meta.glob("../../content/notes/**/*.md", { query: "?raw", import: "default", eager: true }) as Record<string, string>,
+    parseNote,
+    noteSlugOf,
+  ),
+  demoProjects,
 );
 
 export function searchNotes(notes: Note[], query: string): Note[] {

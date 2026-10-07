@@ -79,7 +79,6 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
 
   const note = route.name === "note" ? (notes.find((n) => n.slug === route.slug) ?? notes.find((n) => baseOf(n.slug) === route.slug)) : undefined;
   const project = route.name === "project" ? projects.find((p) => p.slug === route.slug) : undefined;
-  const general = notes.filter((n) => n.projects.length === 0);
 
   const link = (n: Note) => (
     <a key={n.slug} href={noteHref(n.slug, scope)} className={note?.slug === n.slug ? "active" : ""}>
@@ -182,34 +181,16 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
                   <span>{notes.length}</span>
                 </h4>
               </nav>
-              <h4 className="side-title">{t("side.projects")}</h4>
-              {scope === "mine" ? (
-                <>
-                  <nav className="side-group">
-                    {projects.map((p) => (
-                      <a key={p.slug} className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug, scope)}>
-                        <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
-                        {p.name}
-                      </a>
-                    ))}
-                  </nav>
-                  <FolderTree scope={scope} notes={notes} folders={folders} activeSlug={note?.slug} {...treeActions} />
-                </>
-              ) : (
-                <>
-              {projects.map((p) => (
-                <nav key={p.slug} className="side-group">
-                  <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug, scope)}>
-                    <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
-                    {p.name}
-                  </a>
-                  {notes.filter((n) => n.projects.includes(p.slug)).map(link)}
-                </nav>
-              ))}
-              <h4 className="side-title">{t("side.general")}</h4>
-              <nav className="side-group">{general.map(link)}</nav>
-                </>
-              )}
+              <FolderTree
+                scope={scope}
+                notes={notes}
+                projects={projects}
+                folders={folders}
+                activeSlug={note?.slug}
+                activeProject={project?.slug}
+                editable={scope === "mine"}
+                {...treeActions}
+              />
             </>
           )}
           {scope === "demo" && (
@@ -245,7 +226,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
             ))}
           {status === "ready" && route.name === "project" &&
             (project ? (
-              <ProjectView scope={scope} project={project} notes={notes} projects={projects} titles={titles} />
+              <ProjectView scope={scope} project={project} folder={route.folder} folders={folders} notes={notes} projects={projects} titles={titles} />
             ) : (
               <p className="muted">{t("project.missing")} <a href={homeHref(scope)}>{t("back")}</a></p>
             ))}
@@ -458,10 +439,50 @@ function NoteView({
   );
 }
 
-function ProjectView({ scope, project, notes, projects, titles }: { scope: Scope; project: Project; notes: Note[]; projects: Project[]; titles: Map<string, string> }) {
+function ProjectView({
+  scope,
+  project,
+  folder,
+  folders,
+  notes,
+  projects,
+  titles,
+}: {
+  scope: Scope;
+  project: Project;
+  folder: string;
+  folders: string[];
+  notes: Note[];
+  projects: Project[];
+  titles: Map<string, string>;
+}) {
   const { t } = useI18n();
-  const projectNotes = notes.filter((n) => n.projects.includes(project.slug));
+  const [query, setQuery] = useState("");
+  const projectNotes = useMemo(() => notes.filter((n) => n.projects.includes(project.slug)), [notes, project.slug]);
   const options = useMemo(() => ({ titles, noteHref: noteHref("", scope), repo: project.repo, t }), [titles, project.repo, scope, t]);
+
+  // Paths below are relative to the project folder. Notes linked only from their frontmatter count as top level.
+  const prefix = `${project.slug}/`;
+  const rel = (n: Note) => (n.slug.startsWith(prefix) ? n.slug.slice(prefix.length) : baseOf(n.slug));
+  const here = folder ? `${folder}/` : "";
+  const insideFolder = projectNotes.filter((n) => rel(n).startsWith(here));
+  const subfolders = useMemo(() => {
+    const names = new Map<string, number>();
+    const add = (path: string, count: number) => {
+      if (!path.startsWith(here) || path === here.slice(0, -1)) return;
+      const seg = path.slice(here.length).split("/")[0];
+      if (seg) names.set(seg, (names.get(seg) ?? 0) + count);
+    };
+    folders.filter((f) => f.startsWith(prefix)).forEach((f) => add(f.slice(prefix.length), 0));
+    projectNotes.forEach((n) => {
+      const dir = folderOf(rel(n));
+      if (dir) add(dir, 1);
+    });
+    return [...names.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [folders, projectNotes, here]);
+  const shown = query ? searchNotes(projectNotes, query) : insideFolder;
+  const crumbs = folder.split("/").filter(Boolean);
+
   return (
     <article>
       <header className="note-head">
@@ -475,10 +496,44 @@ function ProjectView({ scope, project, notes, projects, titles }: { scope: Scope
           {project.repo && <a className="chip tag" href={project.repo} target="_blank" rel="noreferrer noopener">{t("project.repo")}</a>}
         </div>
       </header>
-      <Markdown source={project.body} options={options} />
-      <h2 className="section-title">{t("project.notes")}</h2>
-      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} scope={scope} />)}</div>
-      {!projectNotes.length && <p className="muted">{t("project.none")}</p>}
+      {!folder && !query && <Markdown source={project.body} options={options} />}
+
+      <input
+        className="search project-search"
+        type="search"
+        placeholder={t("project.search")}
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label={t("project.search")}
+      />
+
+      {!query && (
+        <>
+          <nav className="crumbs" aria-label="Folder">
+            <a href={projectHref(project.slug, scope)}>{project.name}</a>
+            {crumbs.map((c, i) => (
+              <span key={i}>
+                {" › "}
+                {i === crumbs.length - 1 ? c : <a href={projectHref(project.slug, scope, crumbs.slice(0, i + 1).join("/"))}>{c}</a>}
+              </span>
+            ))}
+          </nav>
+          {subfolders.length > 0 && (
+            <div className="folder-cards">
+              {subfolders.map(([name, count]) => (
+                <a key={name} className="folder-card" href={projectHref(project.slug, scope, `${here}${name}`)}>
+                  <strong>{name}</strong>
+                  <span>{count} {count === 1 ? t("project.noteOne") : t("project.notesCount")}</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      <h2 className="section-title">{query ? `${t("home.resultsFor")} “${query}”` : folder ? crumbs[crumbs.length - 1] : t("project.notes")}</h2>
+      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} scope={scope} />)}</div>
+      {!shown.length && <p className="muted">{t("project.none")}</p>}
     </article>
   );
 }

@@ -3,7 +3,7 @@ title: Why Recipe finder uses fetch instead of a library
 summary: The decision to call the API with the built-in fetch, and what we gave up.
 type: decision
 tags: [javascript, fetch, architecture]
-projects: [recipe-finder]
+projects: []
 created: 2026-10-07
 updated: 2026-10-07
 ---

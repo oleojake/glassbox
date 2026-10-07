@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { demoProjects, parseNote, parseProject, type Note, type Project } from "./content";
+import { attachProjects, demoProjects, parseNote, parseProject, type Note, type Project } from "./content";
 import type { Scope } from "./router";
 import { clearConnection, loadConnection, type Connection } from "./connection";
 import { createGitHubClient, GitHubError, parseRepo, type RepoRef } from "./github";
@@ -225,15 +225,21 @@ export function useWorkspace(scope: Scope) {
       const raw = `---\nname: ${JSON.stringify(name)}\ndescription: What this project is.\nstatus: active\nstack: []\n---\n`;
       const path = `projects/${slug}.md`;
       const newSha = await client.writeFile(ref, { path, content: raw, message: `project: add ${slug}`, branch: remote.branch });
+      // The project's notes live in a folder with the same name.
+      const keep = `notes/${slug}/.gitkeep`;
+      const keepSha = await client.writeFile(ref, { path: keep, content: "\n", message: `folder: add ${slug}`, branch: remote.branch });
       setRemote((prev) => ({
         ...prev,
         projects: prev.projects.concat(parseProject(slug, raw)).sort((a, b) => a.name.localeCompare(b.name)),
-        shas: { ...prev.shas, [path]: newSha },
+        folders: [...new Set([...prev.folders, slug])].sort(),
+        shas: { ...prev.shas, [path]: newSha, [keep]: keepSha },
       }));
       return slug;
     },
     [client, ref, remote.projects, remote.branch],
   );
+
+  const mineNotes = useMemo(() => attachProjects(remote.notes, remote.projects), [remote.notes, remote.projects]);
 
   const disconnect = useCallback(() => {
     clearConnection();
@@ -247,7 +253,7 @@ export function useWorkspace(scope: Scope) {
       repo: connection?.repo,
       status: remote.status,
       error: remote.error,
-      notes: remote.notes,
+      notes: mineNotes,
       projects: remote.projects,
       save: saveRemote,
       create: createRemote,

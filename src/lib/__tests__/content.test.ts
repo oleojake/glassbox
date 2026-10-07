@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backlinks, baseOf, folderOf, parseNote, searchNotes } from "../content";
+import { attachProjects, backlinks, baseOf, folderOf, parseNote, parseProject, searchNotes } from "../content";
 import { cleanFolderPath } from "../useWorkspace";
 
 const raw = (title: string, body: string) => `---\ntitle: ${title}\nsummary: About ${title}\ntype: concept\ntags: [js]\n---\n${body}\n`;
@@ -38,5 +38,16 @@ describe("folders", () => {
     const target = parseNote("zod/validation", raw("Validation", "x"));
     const other = parseNote("b", raw("B", "See [[validation]]"));
     expect(backlinks([target, other], "zod/validation").map((n) => n.slug)).toEqual(["b"]);
+  });
+});
+
+describe("projects by folder", () => {
+  it("assigns a note to the project whose folder it is in", () => {
+    const project = parseProject("app", "---\nname: App\n---\n");
+    const inside = parseNote("app/auth/login", raw("Login", "x"));
+    const outside = parseNote("zod/validation", raw("Validation", "x"));
+    const [a, b] = attachProjects([inside, outside], [project]);
+    expect(a.projects).toEqual(["app"]);
+    expect(b.projects).toEqual([]);
   });
 });

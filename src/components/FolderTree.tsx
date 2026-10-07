@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent } from "react";
-import { folderOf, type Note } from "../lib/content";
-import { noteHref, type Scope } from "../lib/router";
+import { folderOf, type Note, type Project } from "../lib/content";
+import { noteHref, projectHref, type Scope } from "../lib/router";
 import { useI18n } from "../lib/i18n";
 
 const DRAG_TYPE = "text/glassbox-note";
@@ -42,18 +42,27 @@ function buildTree(notes: Note[], folders: string[]): Node {
 interface Props {
   scope: Scope;
   notes: Note[];
+  projects: Project[];
   folders: string[];
   activeSlug?: string;
+  activeProject?: string;
+  /** Without editing the tree is read-only (the demo): no drag and drop, no buttons. */
+  editable: boolean;
   onMove: (slug: string, folder: string) => void;
   onNewNote: (folder: string) => void;
   onNewFolder: (parent: string) => void;
   onDeleteFolder: (folder: string) => void;
 }
 
-/** An IDE-style explorer: folders can be created, notes dragged between them. */
-export function FolderTree({ scope, notes, folders, activeSlug, onMove, onNewNote, onNewFolder, onDeleteFolder }: Props) {
+/** An IDE-style explorer: every project is a folder, with subfolders and notes inside. Notes outside any project are General. */
+export function FolderTree({ scope, notes, projects, folders, activeSlug, activeProject, editable, onMove, onNewNote, onNewFolder, onDeleteFolder }: Props) {
   const { t } = useI18n();
   const tree = useMemo(() => buildTree(notes, folders), [notes, folders]);
+  const projectNodes = useMemo(
+    () => projects.map((p) => ({ project: p, node: tree.folders.find((f) => f.name === p.slug) ?? { name: p.slug, path: p.slug, folders: [], notes: [] } })),
+    [projects, tree],
+  );
+  const general = useMemo(() => tree.folders.filter((f) => !projects.some((p) => p.slug === f.name)), [tree, projects]);
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [over, setOver] = useState<string | null>(null);
 
@@ -64,7 +73,7 @@ export function FolderTree({ scope, notes, folders, activeSlug, onMove, onNewNot
       return next;
     });
 
-  const dropTarget = (folder: string) => ({
+  const dropTarget = (folder: string) => !editable ? {} : ({
     onDragOver: (e: DragEvent) => {
       if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
       e.preventDefault();
@@ -84,28 +93,39 @@ export function FolderTree({ scope, notes, folders, activeSlug, onMove, onNewNot
       key={n.slug}
       className={`tree-note${activeSlug === n.slug ? " active" : ""}`}
       href={noteHref(n.slug, scope)}
-      draggable
+      draggable={editable}
       onDragStart={(e) => e.dataTransfer.setData(DRAG_TYPE, n.slug)}
     >
       {n.title}
     </a>
   );
 
-  const renderFolder = (node: Node) => (
+  const renderFolder = (node: Node, project?: Project) => (
     <div key={node.path} className="tree-folder">
-      <div className={`tree-row${over === node.path ? " over" : ""}`} {...dropTarget(node.path)}>
-        <button type="button" className="tree-toggle" onClick={() => toggle(node.path)} aria-expanded={!closed.has(node.path)}>
-          <span aria-hidden="true">{closed.has(node.path) ? "▸" : "▾"}</span> {node.name}
+      <div className={`tree-row${over === node.path ? " over" : ""}${project && activeProject === project.slug ? " active" : ""}`} {...dropTarget(node.path)}>
+        <button type="button" className="tree-arrow" onClick={() => toggle(node.path)} aria-expanded={!closed.has(node.path)} aria-label={node.name}>
+          {closed.has(node.path) ? "▸" : "▾"}
         </button>
-        <span className="tree-actions">
-          <button type="button" title={t("tree.newNote")} aria-label={t("tree.newNote")} onClick={() => onNewNote(node.path)}>+</button>
-          <button type="button" title={t("tree.newFolder")} aria-label={t("tree.newFolder")} onClick={() => onNewFolder(node.path)}>▤</button>
-          <button type="button" title={t("tree.deleteFolder")} aria-label={t("tree.deleteFolder")} onClick={() => onDeleteFolder(node.path)}>×</button>
-        </span>
+        {project ? (
+          <a className="tree-toggle" href={projectHref(project.slug, scope)}>
+            <i className="dot" style={{ background: project.color ?? "var(--accent)" }} /> {project.name}
+          </a>
+        ) : (
+          <button type="button" className="tree-toggle" onClick={() => toggle(node.path)}>
+            {node.name}
+          </button>
+        )}
+        {editable && (
+          <span className="tree-actions">
+            <button type="button" title={t("tree.newNote")} aria-label={t("tree.newNote")} onClick={() => onNewNote(node.path)}>+</button>
+            <button type="button" title={t("tree.newFolder")} aria-label={t("tree.newFolder")} onClick={() => onNewFolder(node.path)}>▤</button>
+            {!project && <button type="button" title={t("tree.deleteFolder")} aria-label={t("tree.deleteFolder")} onClick={() => onDeleteFolder(node.path)}>×</button>}
+          </span>
+        )}
       </div>
       {!closed.has(node.path) && (
         <div className="tree-children">
-          {node.folders.map(renderFolder)}
+          {node.folders.map((f) => renderFolder(f))}
           {node.notes.map(renderNote)}
         </div>
       )}
@@ -114,11 +134,13 @@ export function FolderTree({ scope, notes, folders, activeSlug, onMove, onNewNot
 
   return (
     <nav className="tree" aria-label={t("tree.title")}>
+      <h4 className="side-title">{t("side.projects")}</h4>
+      {projectNodes.map(({ project, node }) => renderFolder(node, project))}
       <div className={`tree-head${over === "" ? " over" : ""}`} {...dropTarget("")}>
-        <h4 className="side-title">{t("tree.title")}</h4>
-        <button type="button" className="tree-add" onClick={() => onNewFolder("")}>{t("side.newFolder")}</button>
+        <h4 className="side-title">{t("side.general")}</h4>
+        {editable && <button type="button" className="tree-add" onClick={() => onNewFolder("")}>{t("side.newFolder")}</button>}
       </div>
-      {tree.folders.map(renderFolder)}
+      {general.map((f) => renderFolder(f))}
       {tree.notes.map(renderNote)}
     </nav>
   );

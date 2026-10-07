@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { demoNotes, parseNote, type Note } from "./content";
+import { attachProjects, demoNotes, demoProjects, parseNote, type Note } from "./content";
 
 const KEY = "glassbox-demo-notes";
 
@@ -46,7 +46,7 @@ export function useNotes() {
   const notes = useMemo<Note[]>(() => {
     const bySlug = new Map(demoNotes.map((n) => [n.slug, n]));
     for (const [slug, raw] of Object.entries(overrides)) bySlug.set(slug, parseNote(slug, raw));
-    return [...bySlug.values()].sort((a, b) => a.title.localeCompare(b.title));
+    return attachProjects([...bySlug.values()], demoProjects).sort((a, b) => a.title.localeCompare(b.title));
   }, [overrides]);
 
   const save = useCallback((slug: string, raw: string) => {

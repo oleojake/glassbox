@@ -3,7 +3,7 @@ title: Debounce and throttle
 summary: Two ways to limit how often a function runs when events fire in rapid bursts.
 type: concept
 tags: [javascript, performance, events, react]
-projects: [recipe-finder]
+projects: []
 created: 2026-10-06
 updated: 2026-10-06
 ---
