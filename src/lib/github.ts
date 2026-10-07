@@ -31,7 +31,23 @@ export interface TreeFile {
   sha: string;
 }
 
-const NOTE_PATH = /^(notes|projects)\/[^/]+\.md$/;
+// Projects are flat; notes may live in any depth of folders under notes/.
+const NOTE_PATH = /^(?:notes\/(?:[^/]+\/)*[^/]+\.md|projects\/[^/]+\.md)$/;
+const KEEP_PATH = /^notes\/(?:[^/]+\/)*\.gitkeep$/;
+
+export interface RepoListing {
+  files: TreeFile[];
+  /** Folder paths under notes/ (without the prefix), including empty ones kept with .gitkeep. */
+  folders: string[];
+  /** .gitkeep files, needed to delete a folder. */
+  keeps: TreeFile[];
+}
+
+export interface TreeChange {
+  path: string;
+  /** Blob sha to place at `path`, or null to delete it. */
+  sha: string | null;
+}
 
 export function decodeBase64Utf8(b64: string): string {
   const binary = atob(b64.replace(/\s/g, ""));
@@ -77,17 +93,25 @@ export function createGitHubClient(token: string, fetchImpl: typeof fetch = (...
       return { private: data.private, canPush: Boolean(data.permissions?.push), defaultBranch: data.default_branch };
     },
 
-    /** Lists `notes/*.md` and `projects/*.md` on a branch. An empty repository yields an empty list. */
-    async listMarkdown(ref: RepoRef, branch: string): Promise<TreeFile[]> {
+    /** Lists notes (at any folder depth), projects and folders. An empty repository yields an empty listing. */
+    async listRepo(ref: RepoRef, branch: string): Promise<RepoListing> {
       try {
         const data = await request<{ tree: { path: string; type: string; sha: string }[] }>(
           `${base(ref)}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
         );
-        return data.tree.filter((e) => e.type === "blob" && NOTE_PATH.test(e.path)).map((e) => ({ path: e.path, sha: e.sha }));
+        return {
+          files: data.tree.filter((e) => e.type === "blob" && NOTE_PATH.test(e.path)).map((e) => ({ path: e.path, sha: e.sha })),
+          folders: data.tree.filter((e) => e.type === "tree" && e.path.startsWith("notes/")).map((e) => e.path.slice("notes/".length)),
+          keeps: data.tree.filter((e) => e.type === "blob" && KEEP_PATH.test(e.path)).map((e) => ({ path: e.path, sha: e.sha })),
+        };
       } catch (err) {
-        if (err instanceof GitHubError && (err.status === 404 || err.status === 409)) return [];
+        if (err instanceof GitHubError && (err.status === 404 || err.status === 409)) return { files: [], folders: [], keeps: [] };
         throw err;
       }
+    },
+
+    async listMarkdown(ref: RepoRef, branch: string): Promise<TreeFile[]> {
+      return (await this.listRepo(ref, branch)).files;
     },
 
     async readBlob(ref: RepoRef, sha: string): Promise<string> {
@@ -107,6 +131,27 @@ export function createGitHubClient(token: string, fetchImpl: typeof fetch = (...
         }),
       });
       return data.content.sha;
+    },
+
+    /** Applies several moves and deletions as ONE commit, using the git data API. */
+    async commitChanges(ref: RepoRef, args: { branch: string; message: string; changes: TreeChange[] }): Promise<void> {
+      const head = await request<{ object: { sha: string } }>(`${base(ref)}/git/ref/heads/${encodeURIComponent(args.branch)}`);
+      const commit = await request<{ tree: { sha: string } }>(`${base(ref)}/git/commits/${head.object.sha}`);
+      const tree = await request<{ sha: string }>(`${base(ref)}/git/trees`, {
+        method: "POST",
+        body: JSON.stringify({
+          base_tree: commit.tree.sha,
+          tree: args.changes.map((c) => ({ path: c.path, mode: "100644", type: "blob", sha: c.sha })),
+        }),
+      });
+      const created = await request<{ sha: string }>(`${base(ref)}/git/commits`, {
+        method: "POST",
+        body: JSON.stringify({ message: args.message, tree: tree.sha, parents: [head.object.sha] }),
+      });
+      await request(`${base(ref)}/git/refs/heads/${encodeURIComponent(args.branch)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ sha: created.sha }),
+      });
     },
 
     /** Deletes a file as one commit. */

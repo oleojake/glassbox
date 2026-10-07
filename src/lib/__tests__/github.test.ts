@@ -36,11 +36,53 @@ describe("client", () => {
     expect((calls[0].init!.headers as Record<string, string>).Authorization).toBe("Bearer tok");
   });
 
-  it("lists only note and project markdown files", async () => {
+  it("lists note and project markdown files, notes at any depth", async () => {
     const tree = ["notes/a.md", "notes/sub/b.md", "projects/p.md", "README.md", "notes/c.txt"].map((path, i) => ({ path, type: "blob", sha: `s${i}` }));
     const { impl } = fakeFetch(() => ({ body: { tree } }));
     const files = await createGitHubClient("t", impl).listMarkdown(ref, "main");
-    expect(files.map((f) => f.path)).toEqual(["notes/a.md", "projects/p.md"]);
+    expect(files.map((f) => f.path)).toEqual(["notes/a.md", "notes/sub/b.md", "projects/p.md"]);
+  });
+
+  it("lists notes in nested folders, folders and .gitkeep files", async () => {
+    const tree = [
+      { path: "notes", type: "tree", sha: "t0" },
+      { path: "notes/zod", type: "tree", sha: "t1" },
+      { path: "notes/zod/validation.md", type: "blob", sha: "s1" },
+      { path: "notes/zod/deep/more.md", type: "blob", sha: "s2" },
+      { path: "notes/empty/.gitkeep", type: "blob", sha: "k1" },
+      { path: "notes/empty", type: "tree", sha: "t2" },
+      { path: "projects/app.md", type: "blob", sha: "s3" },
+      { path: "projects/sub/x.md", type: "blob", sha: "s4" },
+    ];
+    const { impl } = fakeFetch(() => ({ body: { tree } }));
+    const listing = await createGitHubClient("t", impl).listRepo(ref, "main");
+    expect(listing.files.map((f) => f.path)).toEqual(["notes/zod/validation.md", "notes/zod/deep/more.md", "projects/app.md"]);
+    expect(listing.folders).toEqual(["zod", "empty"]);
+    expect(listing.keeps.map((k) => k.path)).toEqual(["notes/empty/.gitkeep"]);
+  });
+
+  it("moves files in one commit through the git data API", async () => {
+    const { impl, calls } = fakeFetch((url) => {
+      if (url.includes("/git/ref/heads/main")) return { body: { object: { sha: "head" } } };
+      if (url.endsWith("/git/commits/head")) return { body: { tree: { sha: "base" } } };
+      if (url.endsWith("/git/trees")) return { body: { sha: "newtree" } };
+      if (url.endsWith("/git/commits")) return { body: { sha: "newcommit" } };
+      return { body: {} };
+    });
+    await createGitHubClient("t", impl).commitChanges(ref, {
+      branch: "main",
+      message: "note: move a to z/a",
+      changes: [{ path: "notes/z/a.md", sha: "blob" }, { path: "notes/a.md", sha: null }],
+    });
+    const tree = JSON.parse(calls.find((c) => c.url.endsWith("/git/trees"))!.init!.body as string);
+    expect(tree.base_tree).toBe("base");
+    expect(tree.tree).toEqual([
+      { path: "notes/z/a.md", mode: "100644", type: "blob", sha: "blob" },
+      { path: "notes/a.md", mode: "100644", type: "blob", sha: null },
+    ]);
+    const last = calls[calls.length - 1];
+    expect(last.init!.method).toBe("PATCH");
+    expect(JSON.parse(last.init!.body as string)).toEqual({ sha: "newcommit" });
   });
 
   it("treats an empty repository as no notes", async () => {

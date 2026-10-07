@@ -113,7 +113,14 @@ export function searchNotes(notes: Note[], query: string): Note[] {
     .map((r) => r.note);
 }
 
+/** Folder part of a slug ("zod/validation" -> "zod"), or "" at the root. */
+export const folderOf = (slug: string) => (slug.includes("/") ? slug.slice(0, slug.lastIndexOf("/")) : "");
+export const baseOf = (slug: string) => slug.slice(slug.lastIndexOf("/") + 1);
+const escapeRegExp = (v: string) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export function backlinks(notes: Note[], slug: string): Note[] {
-  const pattern = new RegExp(`\\[\\[${slug}(\\|[^\\]]*)?\\]\\]`);
+  // A link may use the full path or just the file name.
+  const names = [...new Set([slug, baseOf(slug)])].map(escapeRegExp).join("|");
+  const pattern = new RegExp(`\\[\\[(${names})(\\|[^\\]]*)?\\]\\]`);
   return notes.filter((n) => n.slug !== slug && pattern.test(n.body));
 }
