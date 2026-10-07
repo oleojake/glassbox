@@ -1,6 +1,8 @@
 import { parse as parseYaml } from "yaml";
 
-export type NoteType = "concept" | "recipe" | "decision" | "reference";
+/** The four suggested types. A note can use any other label, so this is a plain string. */
+export const SUGGESTED_TYPES = ["concept", "recipe", "decision", "reference"] as const;
+export type NoteType = string;
 
 export interface Note {
   slug: string;
@@ -50,7 +52,7 @@ export function parseNote(slug: string, raw: string): Note {
     slug,
     title: asString(data.title, slug),
     summary: asString(data.summary),
-    type: (asString(data.type, "concept") as NoteType),
+    type: asString(data.type, "concept").trim().toLowerCase() || "concept",
     tags: asList(data.tags),
     projects: asList(data.projects),
     created: data.created ? asString(data.created).slice(0, 10) : undefined,

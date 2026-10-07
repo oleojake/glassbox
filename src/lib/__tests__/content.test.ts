@@ -18,3 +18,9 @@ describe("content", () => {
     expect(backlinks([a, b], "b").map((n) => n.slug)).toEqual(["a"]);
   });
 });
+
+describe("note types", () => {
+  it("accepts any label and normalises it", () => {
+    expect(parseNote("a", raw("A", "x").replace("type: concept", "type: Meeting")).type).toBe("meeting");
+  });
+});

@@ -5,7 +5,7 @@ You are adding or editing notes in a Glassbox notes repository. The format refer
 ## When the user asks you to save something as a note
 
 1. **Decide the scope.** One note per idea. If the request covers several ideas, write several notes and link them with `[[slug]]`.
-2. **Pick the type.** `concept` (what it is), `recipe` (how to do it, step by step), `decision` (why it was chosen) or `reference` (cheat sheet).
+2. **Pick the type.** Prefer `concept` (what it is), `recipe` (how to do it, step by step), `decision` (why it was chosen) or `reference` (cheat sheet). Use another short lowercase label only if none of them fits.
 3. **Check for an existing note.** Search `notes/` by title and tags. Update an existing note instead of creating a near-duplicate, and bump `updated`.
 4. **Write the note** at `notes/<slug>.md`:
    - Frontmatter with at least `title`, `summary` and `type`.
