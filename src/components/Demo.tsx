@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { backlinks, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
+import { SUGGESTED_TYPES, backlinks, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
 import { homeHref, noteHref, projectHref, tagHref, typeHref, type Route, type Scope } from "../lib/router";
 import { useWorkspace } from "../lib/useWorkspace";
 import { GitHubError } from "../lib/github";
@@ -8,7 +8,7 @@ import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
 import { AiGuide } from "./AiGuide";
 
-const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
+const TYPES: readonly NoteType[] = SUGGESTED_TYPES;
 
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" | "docs" }> }) {
   const { t } = useI18n();
@@ -200,15 +200,18 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
 }
 
 function typeLabel(t: (key: Key) => string, type: NoteType): string {
-  return t(`type.${type}` as Key);
+  // Custom types have no translation: show the label as written.
+  return t(`type.${type}` as Key) || type.charAt(0).toUpperCase() + type.slice(1);
 }
+
+const kindClass = (type: NoteType) => `kind-${type.replace(/[^a-z0-9-]/g, "")}`;
 
 function NoteRow({ n, allProjects, scope }: { n: Note; allProjects: Project[]; scope: Scope }) {
   const { t } = useI18n();
   const projects = allProjects.filter((p) => n.projects.includes(p.slug));
   return (
     <a className="row" href={noteHref(n.slug, scope)}>
-      <span className={`kind kind-${n.type}`}>{typeLabel(t, n.type)}</span>
+      <span className={`kind ${kindClass(n.type)}`}>{typeLabel(t, n.type)}</span>
       <span className="row-main">
         <strong>{n.title}</strong>
         <span className="row-summary">{n.summary}</span>
@@ -224,6 +227,7 @@ function NoteRow({ n, allProjects, scope }: { n: Note; allProjects: Project[]; s
 function Home({ scope, notes, projects, query, tag, type }: { scope: Scope; notes: Note[]; projects: Project[]; query: string; tag?: string; type?: string }) {
   const { t } = useI18n();
   const allTags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
+  const types = useMemo(() => [...TYPES, ...[...new Set(notes.map((n) => n.type))].filter((ty) => !TYPES.includes(ty)).sort()], [notes]);
   const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
   return (
     <>
@@ -233,7 +237,7 @@ function Home({ scope, notes, projects, query, tag, type }: { scope: Scope; note
           <p>{t("demo.typesIntro")}</p>
           <div className="types-grid">
             {TYPES.map((ty) => (
-              <a key={ty} href={typeHref(ty, scope)} className={`type-card kind-${ty}`}>
+              <a key={ty} href={typeHref(ty, scope)} className={`type-card ${kindClass(ty)}`}>
                 <strong>{typeLabel(t, ty)}</strong>
                 <span>{t(`type.${ty}.desc` as Key)}</span>
               </a>
@@ -245,7 +249,7 @@ function Home({ scope, notes, projects, query, tag, type }: { scope: Scope; note
       <h1 className="page-title">{query ? `${t("home.resultsFor")} “${query}”` : t("home.title")}</h1>
       <div className="filters" aria-label={t("home.filterType")}>
         <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag, scope) : homeHref(scope)}>{t("home.all")}</a>
-        {TYPES.map((ty) => (
+        {types.map((ty) => (
           <a key={ty} className={type === ty ? "chip on" : "chip"} href={typeHref(ty, scope)}>{typeLabel(t, ty)}</a>
         ))}
       </div>
@@ -319,7 +323,7 @@ function NoteView({
     <article>
       <header className="note-head">
         <div className="eyebrow-row">
-          <a className={`kind kind-${note.type}`} href={typeHref(note.type, scope)}>{typeLabel(t, note.type)}</a>
+          <a className={`kind ${kindClass(note.type)}`} href={typeHref(note.type, scope)}>{typeLabel(t, note.type)}</a>
           {noteProjects.map((p) => (
             <a key={p.slug} className="proj" href={projectHref(p.slug, scope)}>
               <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />

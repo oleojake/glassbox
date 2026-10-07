@@ -24,7 +24,7 @@ The file name without `.md` is the **slug**: lowercase, hyphen-separated, ASCII 
 ---
 title: Debounce and throttle
 summary: Two ways to limit how often a function runs when events fire in rapid bursts.
-type: concept             # concept | recipe | decision | reference
+type: concept             # suggested: concept | recipe | decision | reference (any label works)
 tags: [javascript, performance, events]
 projects: []              # project slugs; empty = generic note
 created: 2026-10-06
@@ -36,7 +36,7 @@ updated: 2026-10-06
 |---|---|---|
 | `title` | yes | |
 | `summary` | yes | One sentence. Shown in lists and search. |
-| `type` | yes | `concept`: what something is. `recipe`: how to do something step by step. `decision`: why something was chosen. `reference`: cheat sheet. |
+| `type` | yes | A label for what kind of note it is. Suggested: `concept` (what something is), `recipe` (how to do something step by step), `decision` (why something was chosen), `reference` (cheat sheet). Any other lowercase word works too, for example `meeting` or `bug`. |
 | `tags` | no | Lowercase. |
 | `projects` | no | A generic note can link to several projects where it is used. |
 | `created`, `updated` | no | The app can also infer them from git history. |
