@@ -12,11 +12,12 @@ my-notes/
     <slug>.md             # one file per project
   notes/
     <slug>.md             # one file per note
+    <folder>/<slug>.md    # notes can be grouped in folders, at any depth (for example zod/validation.md)
   assets/
     <slug>/image.png      # images for each note
 ```
 
-The file name without `.md` is the **slug**: lowercase, hyphen-separated, ASCII only. It is the id used for links.
+The path of a note inside `notes/`, without `.md`, is its **slug** (for example `zod/validation`). Folder and file names are lowercase, hyphen-separated, ASCII only. Folders are only for organising: a note keeps its project and tags in the frontmatter. In `[[links]]` the file name alone is enough (`[[validation]]`) when it is unique.
 
 ## 2. Note frontmatter
 

@@ -286,3 +286,23 @@ a.kind:hover { text-decoration: underline; }
 .ai-examples { margin: 4px 0 0; padding-left: 1.1rem; }
 .ai-examples li { margin-bottom: 6px; }
 .ai-examples code { font-size: .78rem; white-space: normal; word-break: break-word; }
+
+/* Folder explorer (My notes) */
+.tree { margin-top: 18px; }
+.tree-head { display: flex; justify-content: space-between; align-items: center; border-radius: 6px; }
+.tree-head .side-title { margin: 0; }
+.tree-add { background: none; border: 0; color: var(--accent); font: inherit; font-size: .8rem; padding: 2px 6px; }
+.tree-row { display: flex; justify-content: space-between; align-items: center; border-radius: 6px; padding-right: 4px; }
+.tree-row:hover { background: var(--bg); }
+.tree-row.over, .tree-head.over { background: color-mix(in srgb, var(--accent) 16%, transparent); outline: 1px dashed var(--accent); }
+.tree-toggle { flex: 1; text-align: left; background: none; border: 0; color: var(--text); font: inherit; font-size: .88rem; font-weight: 600; padding: 4px 6px; }
+.tree-actions { display: none; gap: 2px; }
+.tree-row:hover .tree-actions, .tree-row:focus-within .tree-actions { display: flex; }
+.tree-actions button { background: none; border: 0; color: var(--muted); padding: 2px 5px; font-size: .85rem; border-radius: 4px; }
+.tree-actions button:hover { background: var(--border); color: var(--text); }
+.tree-children { margin-left: 10px; padding-left: 8px; border-left: 1px solid var(--border); }
+.tree-note { display: block; padding: 4px 8px; border-radius: 6px; font-size: .86rem; color: var(--text); cursor: grab; }
+.tree-note:hover, .tree-note.active { background: var(--bg); }
+.tree > .tree-note { margin-left: 4px; }
+.folder-select { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); }
+.folder-select select { font: inherit; font-size: .8rem; padding: 3px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }

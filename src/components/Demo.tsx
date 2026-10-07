@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { SUGGESTED_TYPES, backlinks, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
+import { SUGGESTED_TYPES, backlinks, baseOf, folderOf, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
 import { homeHref, noteHref, projectHref, tagHref, typeHref, type Route, type Scope } from "../lib/router";
 import { useWorkspace } from "../lib/useWorkspace";
 import { GitHubError } from "../lib/github";
@@ -7,23 +7,63 @@ import { LangSwitch, useI18n, type Key } from "../lib/i18n";
 import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
 import { AiGuide } from "./AiGuide";
+import { FolderTree } from "./FolderTree";
+import { cleanFolderPath } from "../lib/useWorkspace";
 
 const TYPES: readonly NoteType[] = SUGGESTED_TYPES;
 
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" | "docs" }> }) {
   const { t } = useI18n();
   const scope: Scope = route.scope;
-  const { mode, connected, repo, status, error, notes, projects, save, create, remove, createProject, reset, reload, hasChanges } = useWorkspace(scope);
+  const { mode, connected, repo, status, error, notes, projects, save, create, remove, createProject, folders, createFolder, moveNote, removeFolder, reset, reload, hasChanges } = useWorkspace(scope);
   useEffect(() => {
     if (scope === "mine" && !connected) window.location.hash = "#/connect";
   }, [scope, connected]);
+  const fail = (err: unknown) => window.alert(`${t("note.saveError")} ${err instanceof Error ? err.message : String(err)}`);
+  const treeActions = {
+    onMove: async (slug: string, folder: string) => {
+      try {
+        const next = await moveNote?.(slug, folder);
+        if (next && next !== slug && note?.slug === slug) window.location.hash = noteHref(next, scope);
+      } catch (err) {
+        fail(err);
+      }
+    },
+    onNewNote: (folder: string) => {
+      window.location.hash = noteHref(create(folder), scope) + "?edit";
+    },
+    onNewFolder: async (parent: string) => {
+      const name = window.prompt(t("side.newFolderPrompt"))?.trim();
+      const path = name ? cleanFolderPath(parent ? `${parent}/${name}` : name) : "";
+      if (!path) return;
+      try {
+        await createFolder?.(path);
+      } catch (err) {
+        fail(err);
+      }
+    },
+    onDeleteFolder: async (folder: string) => {
+      const count = notes.filter((n) => n.slug.startsWith(`${folder}/`)).length;
+      if (!window.confirm(t("tree.deleteConfirm").replace("{n}", String(count)).replace("{folder}", folder))) return;
+      try {
+        await removeFolder?.(folder);
+      } catch (err) {
+        fail(err);
+      }
+    },
+  };
   const disconnect = () => {
     reset();
     window.location.hash = "#/";
   };
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
-  const titles = useMemo(() => new Map(notes.map((n) => [n.slug, n.title])), [notes]);
+  // Links may use the file name alone, so every note is known by its path and by its name.
+  const titles = useMemo(() => {
+    const map = new Map(notes.map((n) => [n.slug, n.title]));
+    for (const n of notes) if (!map.has(baseOf(n.slug))) map.set(baseOf(n.slug), n.title);
+    return map;
+  }, [notes]);
   const results = useMemo(() => searchNotes(notes, query), [notes, query]);
 
   useEffect(() => {
@@ -37,7 +77,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const note = route.name === "note" ? notes.find((n) => n.slug === route.slug) : undefined;
+  const note = route.name === "note" ? (notes.find((n) => n.slug === route.slug) ?? notes.find((n) => baseOf(n.slug) === route.slug)) : undefined;
   const project = route.name === "project" ? projects.find((p) => p.slug === route.slug) : undefined;
   const general = notes.filter((n) => n.projects.length === 0);
 
@@ -143,6 +183,20 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
                 </h4>
               </nav>
               <h4 className="side-title">{t("side.projects")}</h4>
+              {scope === "mine" ? (
+                <>
+                  <nav className="side-group">
+                    {projects.map((p) => (
+                      <a key={p.slug} className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug, scope)}>
+                        <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
+                        {p.name}
+                      </a>
+                    ))}
+                  </nav>
+                  <FolderTree scope={scope} notes={notes} folders={folders} activeSlug={note?.slug} {...treeActions} />
+                </>
+              ) : (
+                <>
               {projects.map((p) => (
                 <nav key={p.slug} className="side-group">
                   <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug, scope)}>
@@ -154,6 +208,8 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
               ))}
               <h4 className="side-title">{t("side.general")}</h4>
               <nav className="side-group">{general.map(link)}</nav>
+                </>
+              )}
             </>
           )}
           {scope === "demo" && (
@@ -183,7 +239,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
           {status === "ready" && route.name === "demo" && <Home scope={scope} notes={results} projects={projects} query={query} tag={route.tag} type={route.type} />}
           {status === "ready" && route.name === "note" &&
             (note ? (
-              <NoteView key={note.slug} scope={scope} note={note} notes={notes} projects={projects} titles={titles} onSave={save} onDelete={remove} />
+              <NoteView key={note.slug} scope={scope} note={note} notes={notes} projects={projects} titles={titles} onSave={save} onDelete={remove} folders={folders} onMove={moveNote} />
             ) : (
               <p className="muted">{t("note.missing")} <a href={homeHref(scope)}>{t("back")}</a></p>
             ))}
@@ -272,6 +328,8 @@ function NoteView({
   titles,
   onSave,
   onDelete,
+  folders,
+  onMove,
 }: {
   scope: Scope;
   note: Note;
@@ -280,6 +338,8 @@ function NoteView({
   titles: Map<string, string>;
   onSave: (slug: string, raw: string) => Promise<void>;
   onDelete?: (slug: string) => Promise<void>;
+  folders: string[];
+  onMove?: (slug: string, folder: string) => Promise<string>;
 }) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(() => window.location.hash.endsWith("?edit"));
@@ -308,6 +368,17 @@ function NoteView({
       setSaving(false);
     }
   };
+
+  const moveTo = async (folder: string) => {
+    if (!onMove) return;
+    try {
+      const next = await onMove(note.slug, folder);
+      window.location.hash = noteHref(next, scope);
+    } catch (err) {
+      setSaveError(`${t("note.saveError")} ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+  const folderChoices = useMemo(() => [...new Set([...folders, ...notes.map((n) => folderOf(n.slug))].filter(Boolean))].sort(), [folders, notes]);
 
   const deleteNote = async () => {
     if (!onDelete || !window.confirm(t("note.deleteConfirm"))) return;
@@ -346,6 +417,19 @@ function NoteView({
           ) : (
             <>
               <button type="button" className="btn small" onClick={startEdit}>{t("note.edit")}</button>
+              {onMove && (
+                <label className="folder-select">
+                  {t("note.folder")}
+                  <select value={folderOf(note.slug)} onChange={(e) => moveTo(e.target.value)}>
+                    <option value="">{t("note.rootFolder")}</option>
+                    {folderChoices.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {onDelete && <button type="button" className="btn small danger" onClick={deleteNote}>{t("note.delete")}</button>}
             </>
           )}

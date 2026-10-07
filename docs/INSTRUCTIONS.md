@@ -7,7 +7,7 @@ You are adding or editing notes in a Glassbox notes repository. The format refer
 1. **Decide the scope.** One note per idea. If the request covers several ideas, write several notes and link them with `[[slug]]`.
 2. **Pick the type.** Prefer `concept` (what it is), `recipe` (how to do it, step by step), `decision` (why it was chosen) or `reference` (cheat sheet). Use another short lowercase label only if none of them fits.
 3. **Check for an existing note.** Search `notes/` by title and tags. Update an existing note instead of creating a near-duplicate, and bump `updated`.
-4. **Write the note** at `notes/<slug>.md`:
+4. **Choose the folder.** Look at the existing folders in `notes/` and use the one that matches the topic or technology (for example `notes/zod/`). Create a new folder only when none fits, and do not nest deeper than two levels. Write the note at `notes/<folder>/<slug>.md`, or `notes/<slug>.md` when it does not belong anywhere in particular:
    - Frontmatter with at least `title`, `summary` and `type`.
    - A `[!REMEMBER]` callout right after the title with the core idea in one sentence.
    - A `mermaid` diagram or a `steps` block whenever there is a flow, an order or more than two moving parts.
