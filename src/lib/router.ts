@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 export type Route =
   | { name: "landing" }
   | { name: "connect" }
+  | { name: "docs" }
   | { name: "demo"; scope: Scope; tag?: string; type?: string }
   | { name: "note"; scope: Scope; slug: string }
   | { name: "project"; scope: Scope; slug: string };
@@ -15,6 +16,7 @@ export function parseHash(hash: string): Route {
   const [path, query = ""] = hash.replace(/^#\/?/, "").split("?");
   const parts = path.split("/").filter(Boolean).map(decodeURIComponent);
   if (parts[0] === "connect") return { name: "connect" };
+  if (parts[0] === "demo" && parts[1] === "docs") return { name: "docs" };
   const scope: Scope | null = parts[0] === "demo" ? "demo" : parts[0] === "app" ? "mine" : null;
   if (!scope) return { name: "landing" };
   if (parts[1] === "notes" && parts[2]) return { name: "note", scope, slug: parts[2] };
