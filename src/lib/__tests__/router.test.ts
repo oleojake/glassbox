@@ -7,6 +7,7 @@ describe("router", () => {
     expect(parseHash("#/app/notes/a")).toEqual({ name: "note", scope: "mine", slug: "a" });
     expect(parseHash("#/app?tag=x")).toMatchObject({ name: "demo", scope: "mine", tag: "x" });
     expect(noteHref("a", "mine")).toBe("#/app/notes/a");
+    expect(parseHash("#/app/projects/p?folder=zod%2Fsub")).toEqual({ name: "project", scope: "mine", slug: "p", folder: "zod/sub" });
     expect(parseHash("#/")).toEqual({ name: "landing" });
   });
 });

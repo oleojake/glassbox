@@ -12,7 +12,8 @@ my-notes/
     <slug>.md             # one file per project
   notes/
     <slug>.md             # one file per note
-    <folder>/<slug>.md    # notes can be grouped in folders, at any depth (for example zod/validation.md)
+    <project-slug>/<folder>/<slug>.md   # a folder named like a project holds that project's notes
+    <folder>/<slug>.md                  # any other folder is General (for example zod/validation.md)
   assets/
     <slug>/image.png      # images for each note
 ```
@@ -27,7 +28,7 @@ title: Debounce and throttle
 summary: Two ways to limit how often a function runs when events fire in rapid bursts.
 type: concept             # suggested: concept | recipe | decision | reference (any label works)
 tags: [javascript, performance, events]
-projects: []              # project slugs; empty = generic note
+projects: []              # optional extra project links; the note's folder already sets its project
 created: 2026-10-06
 updated: 2026-10-06
 ---
@@ -39,7 +40,7 @@ updated: 2026-10-06
 | `summary` | yes | One sentence. Shown in lists and search. |
 | `type` | yes | A label for what kind of note it is. Suggested: `concept` (what something is), `recipe` (how to do something step by step), `decision` (why something was chosen), `reference` (cheat sheet). Any other lowercase word works too, for example `meeting` or `bug`. |
 | `tags` | no | Lowercase. |
-| `projects` | no | A generic note can link to several projects where it is used. |
+| `projects` | no | A note inside `notes/<project-slug>/` belongs to that project by its location. This field adds further projects, for a general note used in several of them. |
 | `created`, `updated` | no | The app can also infer them from git history. |
 
 ## 3. Project frontmatter
@@ -55,7 +56,7 @@ color: "#e8a33d"          # optional, used on the project card
 ---
 ```
 
-The body of a project file is free-form (context, decisions, links). A project's notes are listed automatically from each note's `projects` field.
+The body of a project file is free-form (context, decisions, links). A project's notes are the ones inside its folder `notes/<slug>/` (at any depth) plus any note that lists it in `projects`.
 
 ## 4. Special blocks
 

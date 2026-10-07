@@ -306,3 +306,13 @@ a.kind:hover { text-decoration: underline; }
 .tree > .tree-note { margin-left: 4px; }
 .folder-select { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); }
 .folder-select select { font: inherit; font-size: .8rem; padding: 3px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+.tree-arrow { background: none; border: 0; color: var(--muted); padding: 4px 4px 4px 6px; font-size: .8rem; }
+a.tree-toggle { display: block; text-decoration: none; }
+.tree-row.active { background: var(--bg); }
+.project-search { margin: 22px 0 10px; max-width: 420px; }
+.crumbs { margin: 14px 0 8px; font-size: .9rem; color: var(--muted); }
+.folder-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin: 10px 0 6px; }
+.folder-card { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.folder-card:hover { border-color: var(--accent); }
+.folder-card span { color: var(--muted); font-size: .82rem; }
+.tree-head { margin-top: 16px; }

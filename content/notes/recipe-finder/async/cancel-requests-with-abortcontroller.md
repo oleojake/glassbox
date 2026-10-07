@@ -3,7 +3,7 @@ title: Cancel requests with AbortController
 summary: Stop an in-flight fetch so a slow, outdated response can never overwrite a newer one.
 type: recipe
 tags: [javascript, fetch, react, async]
-projects: [recipe-finder]
+projects: []
 created: 2026-10-06
 updated: 2026-10-06
 ---

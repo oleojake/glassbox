@@ -10,8 +10,8 @@ function body(repo: string): string {
 1. **Understand the request.** If it mentions a commit, a diff, a feature or a part of the code, read the real thing first (\`git show\`, \`git diff\`, the files). Never describe code you have not seen.
 2. **Find the current project.** Use the code project you are in: its folder name and \`git remote get-url origin\`.
 3. **Get the notes repo:** \`gh repo clone ${repo} "\${TMPDIR:-/tmp}/glassbox-notes"\` (or \`git pull\` if it is already there).
-4. **Match the project.** Look in \`projects/\` for a file whose \`repo\` or \`name\` matches the current project. If there is none, create \`projects/<slug>.md\` with the name and the \`repo\` URL. A note about this project's own code or architecture gets \`projects: [<slug>]\`. A general idea (for example "what is a reducer") stays generic, with \`projects: []\`.
-5. **Write the note** following the guide below, in the folder that matches its topic (reuse an existing folder in \`notes/\` when one fits).
+4. **Match the project.** Look in \`projects/\` for a file whose \`repo\` or \`name\` matches the current project. If there is none, create \`projects/<slug>.md\` with the name and the \`repo\` URL, and the folder \`notes/<slug>/\`. A note about this project's own code or architecture goes inside \`notes/<slug>/\`, in a topic subfolder when one fits (for example \`notes/<slug>/auth/\`). A general idea (for example "what is a reducer") goes in a topic folder at the top of \`notes/\`.
+5. **Write the note** following the guide below. Reuse an existing folder when one fits.
 6. **Commit** with a message like \`note: add <slug>\` and push to the default branch.
 7. **Reply in two lines**: the file you created and what it covers.
 
