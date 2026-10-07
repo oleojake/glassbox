@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { LangSwitch, useI18n } from "../lib/i18n";
+import { loadConnection } from "../lib/connection";
 import { Markdown } from "./Markdown";
 
 export const REPO_URL = "https://github.com/oleojake/glassbox";
@@ -20,6 +21,7 @@ const HERO_NOTE = `> [!REMEMBER]
 
 export function Landing() {
   const { t } = useI18n();
+  const connected = loadConnection() !== null;
   const heroOptions = useMemo(() => ({ titles: new Map<string, string>(), noteHref: "#/demo/notes/", t }), [t]);
 
   return (
@@ -31,7 +33,7 @@ export function Landing() {
         </a>
         <nav>
           <a href="#/demo">{t("nav.demo")}</a>
-          <a href="#/connect">{t("nav.connect")}</a>
+          {connected ? <a href="#/app">{t("nav.mine")}</a> : <a href="#/connect">{t("nav.connect")}</a>}
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
             {t("nav.github")}
           </a>
@@ -47,16 +49,30 @@ export function Landing() {
         </h1>
         <p className="lead">{t("landing.lead")}</p>
         <div className="cta">
-          <a className="btn primary" href="#/demo">
-            {t("landing.try")}
-          </a>
-          <a className="btn" href={REPO_URL} target="_blank" rel="noreferrer noopener">
-            {t("landing.viewGithub")}
-          </a>
+          {connected ? (
+            <>
+              <a className="btn primary" href="#/app">
+                {t("nav.mine")}
+              </a>
+              <a className="btn" href="#/demo">
+                {t("landing.try")}
+              </a>
+            </>
+          ) : (
+            <>
+              <a className="btn primary" href="#/demo">
+                {t("landing.try")}
+              </a>
+              <a className="btn" href="#/connect">
+                {t("nav.connect")}
+              </a>
+            </>
+          )}
         </div>
         <p className="fineprint">{t("landing.fine")}</p>
       </section>
 
+      <p className="sample-intro">{t("landing.example")}</p>
       <section className="sample" aria-label="Example note">
         <div className="sample-label">
           {t("type.concept")} · {t("landing.sampleExample")}
@@ -78,6 +94,11 @@ export function Landing() {
           <h3>{t("landing.f3.title")}</h3>
           <p>{t("landing.f3.text")}</p>
         </article>
+      </section>
+
+      <section className="store">
+        <h2>{t("landing.store.title")}</h2>
+        <p>{t("landing.store.text")}</p>
       </section>
 
       <section className="how">

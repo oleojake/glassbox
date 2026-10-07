@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { demoProjects, parseNote, parseProject, type Note, type Project } from "./content";
+import type { Scope } from "./router";
 import { clearConnection, loadConnection, type Connection } from "./connection";
 import { createGitHubClient, GitHubError, parseRepo, type RepoRef } from "./github";
 import { NEW_NOTE_TEMPLATE, useNotes } from "./useNotes";
@@ -38,9 +39,11 @@ const EMPTY: Remote = { status: "loading", notes: [], projects: [], shas: {}, br
  * One interface for both modes: the browser-only demo, or the notes repo the visitor connected.
  * In connected mode every save is a commit on the repository's default branch.
  */
-export function useWorkspace() {
+export function useWorkspace(scope: Scope) {
   const demo = useNotes();
-  const [connection, setConnection] = useState<Connection | null>(loadConnection);
+  const [stored, setConnection] = useState<Connection | null>(loadConnection);
+  // The demo route never touches the connected repo, so the two can't be confused.
+  const connection = scope === "mine" ? stored : null;
   const [remote, setRemote] = useState<Remote>(EMPTY);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -116,10 +119,11 @@ export function useWorkspace() {
     setConnection(null);
   }, []);
 
-  if (connection) {
+  if (scope === "mine") {
     return {
       mode: "connected" as const,
-      repo: connection.repo,
+      connected: connection !== null,
+      repo: connection?.repo,
       status: remote.status,
       error: remote.error,
       notes: remote.notes,
@@ -133,6 +137,7 @@ export function useWorkspace() {
   }
   return {
     mode: "demo" as const,
+    connected: stored !== null,
     repo: undefined,
     status: "ready" as WorkspaceStatus,
     error: undefined,
