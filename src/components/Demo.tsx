@@ -1,18 +1,26 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { backlinks, searchNotes, splitFrontmatter, type Note, type NoteType, type Project } from "../lib/content";
-import { noteHref, projectHref, tagHref, typeHref, type Route } from "../lib/router";
+import { homeHref, noteHref, projectHref, tagHref, typeHref, type Route, type Scope } from "../lib/router";
 import { useWorkspace } from "../lib/useWorkspace";
 import { GitHubError } from "../lib/github";
 import { LangSwitch, useI18n, type Key } from "../lib/i18n";
 import { Markdown } from "./Markdown";
 import { REPO_URL } from "./Landing";
+import { AiGuide } from "./AiGuide";
 
-const NOTE_HREF = "#/demo/notes/";
 const TYPES: NoteType[] = ["concept", "recipe", "decision", "reference"];
 
 export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "connect" }> }) {
   const { t } = useI18n();
-  const { mode, repo, status, error, notes, projects, save, create, reset, reload, hasChanges } = useWorkspace();
+  const scope: Scope = route.scope;
+  const { mode, connected, repo, status, error, notes, projects, save, create, reset, reload, hasChanges } = useWorkspace(scope);
+  useEffect(() => {
+    if (scope === "mine" && !connected) window.location.hash = "#/connect";
+  }, [scope, connected]);
+  const disconnect = () => {
+    reset();
+    window.location.hash = "#/";
+  };
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const titles = useMemo(() => new Map(notes.map((n) => [n.slug, n.title])), [notes]);
@@ -34,18 +42,18 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
   const general = notes.filter((n) => n.projects.length === 0);
 
   const link = (n: Note) => (
-    <a key={n.slug} href={noteHref(n.slug)} className={note?.slug === n.slug ? "active" : ""}>
+    <a key={n.slug} href={noteHref(n.slug, scope)} className={note?.slug === n.slug ? "active" : ""}>
       {n.title}
     </a>
   );
 
   return (
     <div className="app">
-      <div className="demo-banner">
+      <div className={`demo-banner ${scope === "mine" ? "is-mine" : "is-demo"}`}>
         <span>
-          {mode === "connected" ? (
+          {scope === "mine" ? (
             <>
-              <strong>{t("demo.connected")}</strong> {repo}
+              <strong>{t("mine.label")}</strong> {repo} · {t("mine.banner")}
             </>
           ) : (
             <>
@@ -55,15 +63,18 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
           )}
         </span>
         <span className="banner-actions">
-          {mode === "connected" && (
-            <button type="button" className="link" onClick={reset}>
+          {scope === "mine" && (
+            <button type="button" className="link" onClick={disconnect}>
               {t("demo.disconnect")}
             </button>
           )}
-          {mode === "demo" && hasChanges && (
+          {scope === "demo" && hasChanges && (
             <button type="button" className="link" onClick={reset}>
               {t("demo.reset")}
             </button>
+          )}
+          {scope === "demo" && (
+            <a href={connected ? homeHref("mine") : "#/connect"}>{connected ? t("nav.mine") : t("demo.connectCta")}</a>
           )}
           <a href={REPO_URL} target="_blank" rel="noreferrer noopener">
             {t("demo.getCode")}
@@ -77,6 +88,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
           <a className="brand" href="#/">
             <span className="logo" aria-hidden="true" />
             Glassbox
+            <span className={`scope-tag ${scope}`}>{scope === "mine" ? t("mine.tag") : t("demo.tag")}</span>
           </a>
           <input
             ref={searchRef}
@@ -92,7 +104,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
             className="new"
             onClick={() => {
               const slug = create();
-              window.location.hash = noteHref(slug) + "?edit";
+              window.location.hash = noteHref(slug, scope) + "?edit";
             }}
           >
             {t("side.new")}
@@ -108,14 +120,14 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
             <>
               <nav className="side-group">
                 <h4>
-                  <a href="#/demo">{t("side.all")}</a>
+                  <a href={homeHref(scope)}>{t("side.all")}</a>
                   <span>{notes.length}</span>
                 </h4>
               </nav>
               <h4 className="side-title">{t("side.projects")}</h4>
               {projects.map((p) => (
                 <nav key={p.slug} className="side-group">
-                  <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug)}>
+                  <a className={`side-project${project?.slug === p.slug ? " active" : ""}`} href={projectHref(p.slug, scope)}>
                     <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
                     {p.name}
                   </a>
@@ -126,6 +138,7 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
               <nav className="side-group">{general.map(link)}</nav>
             </>
           )}
+          {scope === "mine" && notes.length > 0 && <AiGuide />}
         </aside>
 
         <main className="main" key={route.name === "demo" ? "home" : "slug" in route ? route.slug : "x"}>
@@ -138,26 +151,24 @@ export function Demo({ route }: { route: Exclude<Route, { name: "landing" | "con
               </button>
             </p>
           )}
-          {status === "ready" && mode === "connected" && notes.length === 0 && route.name === "demo" && (
-            <p className="muted">
-              {t("ws.empty")}{" "}
-              <a href={`${REPO_URL}/blob/main/docs/FORMAT.md`} target="_blank" rel="noreferrer noopener">
-                {t("ws.format")}
-              </a>
-            </p>
+          {status === "ready" && scope === "mine" && notes.length === 0 && route.name === "demo" && (
+            <div className="empty">
+              <p>{t("ws.empty")}</p>
+              <AiGuide />
+            </div>
           )}
-          {status === "ready" && route.name === "demo" && <Home notes={results} projects={projects} query={query} tag={route.tag} type={route.type} />}
+          {status === "ready" && route.name === "demo" && <Home scope={scope} notes={results} projects={projects} query={query} tag={route.tag} type={route.type} />}
           {status === "ready" && route.name === "note" &&
             (note ? (
-              <NoteView key={note.slug} note={note} notes={notes} projects={projects} titles={titles} onSave={save} />
+              <NoteView key={note.slug} scope={scope} note={note} notes={notes} projects={projects} titles={titles} onSave={save} />
             ) : (
-              <p className="muted">{t("note.missing")} <a href="#/demo">{t("back")}</a></p>
+              <p className="muted">{t("note.missing")} <a href={homeHref(scope)}>{t("back")}</a></p>
             ))}
           {status === "ready" && route.name === "project" &&
             (project ? (
-              <ProjectView project={project} notes={notes} projects={projects} titles={titles} />
+              <ProjectView scope={scope} project={project} notes={notes} projects={projects} titles={titles} />
             ) : (
-              <p className="muted">{t("project.missing")} <a href="#/demo">{t("back")}</a></p>
+              <p className="muted">{t("project.missing")} <a href={homeHref(scope)}>{t("back")}</a></p>
             ))}
         </main>
       </div>
@@ -169,11 +180,11 @@ function typeLabel(t: (key: Key) => string, type: NoteType): string {
   return t(`type.${type}` as Key);
 }
 
-function NoteRow({ n, allProjects }: { n: Note; allProjects: Project[] }) {
+function NoteRow({ n, allProjects, scope }: { n: Note; allProjects: Project[]; scope: Scope }) {
   const { t } = useI18n();
   const projects = allProjects.filter((p) => n.projects.includes(p.slug));
   return (
-    <a className="row" href={noteHref(n.slug)}>
+    <a className="row" href={noteHref(n.slug, scope)}>
       <span className={`kind kind-${n.type}`}>{typeLabel(t, n.type)}</span>
       <span className="row-main">
         <strong>{n.title}</strong>
@@ -187,7 +198,7 @@ function NoteRow({ n, allProjects }: { n: Note; allProjects: Project[] }) {
   );
 }
 
-function Home({ notes, projects, query, tag, type }: { notes: Note[]; projects: Project[]; query: string; tag?: string; type?: string }) {
+function Home({ scope, notes, projects, query, tag, type }: { scope: Scope; notes: Note[]; projects: Project[]; query: string; tag?: string; type?: string }) {
   const { t } = useI18n();
   const allTags = useMemo(() => [...new Set(notes.flatMap((n) => n.tags))].sort(), [notes]);
   const shown = notes.filter((n) => (!type || n.type === type) && (!tag || n.tags.includes(tag)));
@@ -195,29 +206,31 @@ function Home({ notes, projects, query, tag, type }: { notes: Note[]; projects: 
     <>
       <h1 className="page-title">{query ? `${t("home.resultsFor")} “${query}”` : t("home.title")}</h1>
       <div className="filters" aria-label={t("home.filterType")}>
-        <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag) : "#/demo"}>{t("home.all")}</a>
+        <a className={!type ? "chip on" : "chip"} href={tag ? tagHref(tag, scope) : homeHref(scope)}>{t("home.all")}</a>
         {TYPES.map((ty) => (
-          <a key={ty} className={type === ty ? "chip on" : "chip"} href={typeHref(ty)}>{typeLabel(t, ty)}</a>
+          <a key={ty} className={type === ty ? "chip on" : "chip"} href={typeHref(ty, scope)}>{typeLabel(t, ty)}</a>
         ))}
       </div>
       <div className="filters" aria-label={t("home.filterTag")}>
         {allTags.map((tg) => (
-          <a key={tg} className={tag === tg ? "chip tag on" : "chip tag"} href={tag === tg ? "#/demo" : tagHref(tg)}>#{tg}</a>
+          <a key={tg} className={tag === tg ? "chip tag on" : "chip tag"} href={tag === tg ? homeHref(scope) : tagHref(tg, scope)}>#{tg}</a>
         ))}
       </div>
-      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} />)}</div>
+      <div className="rows">{shown.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} scope={scope} />)}</div>
       {!shown.length && <p className="muted">{t("home.noMatch")}</p>}
     </>
   );
 }
 
 function NoteView({
+  scope,
   note,
   notes,
   projects,
   titles,
   onSave,
 }: {
+  scope: Scope;
   note: Note;
   notes: Note[];
   projects: Project[];
@@ -232,7 +245,7 @@ function NoteView({
   const deferred = useDeferredValue(editing ? splitFrontmatter(draft).body : note.body);
   const noteProjects = projects.filter((p) => note.projects.includes(p.slug));
   const repo = noteProjects.find((p) => p.repo)?.repo;
-  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo, t }), [titles, repo, t]);
+  const options = useMemo(() => ({ titles, noteHref: noteHref("", scope), repo, t }), [titles, repo, scope, t]);
   const linkedFrom = useMemo(() => backlinks(notes, note.slug), [notes, note.slug]);
 
   const startEdit = () => {
@@ -256,9 +269,9 @@ function NoteView({
     <article>
       <header className="note-head">
         <div className="eyebrow-row">
-          <a className={`kind kind-${note.type}`} href={typeHref(note.type)}>{typeLabel(t, note.type)}</a>
+          <a className={`kind kind-${note.type}`} href={typeHref(note.type, scope)}>{typeLabel(t, note.type)}</a>
           {noteProjects.map((p) => (
-            <a key={p.slug} className="proj" href={projectHref(p.slug)}>
+            <a key={p.slug} className="proj" href={projectHref(p.slug, scope)}>
               <i className="dot" style={{ background: p.color ?? "var(--accent)" }} />
               {p.name}
             </a>
@@ -268,7 +281,7 @@ function NoteView({
         <h1>{note.title}</h1>
         <p className="lead">{note.summary}</p>
         <div className="meta">
-          {note.tags.map((tg) => <a key={tg} className="chip tag" href={tagHref(tg)}>#{tg}</a>)}
+          {note.tags.map((tg) => <a key={tg} className="chip tag" href={tagHref(tg, scope)}>#{tg}</a>)}
           {note.updated && <span className="muted">{t("note.updated")} {note.updated}</span>}
           <span className="spacer" />
           {editing ? (
@@ -297,17 +310,17 @@ function NoteView({
       {!editing && linkedFrom.length > 0 && (
         <footer className="backlinks">
           <h4>{t("note.mentioned")}</h4>
-          {linkedFrom.map((n) => <a key={n.slug} href={noteHref(n.slug)}>{n.title}</a>)}
+          {linkedFrom.map((n) => <a key={n.slug} href={noteHref(n.slug, scope)}>{n.title}</a>)}
         </footer>
       )}
     </article>
   );
 }
 
-function ProjectView({ project, notes, projects, titles }: { project: Project; notes: Note[]; projects: Project[]; titles: Map<string, string> }) {
+function ProjectView({ scope, project, notes, projects, titles }: { scope: Scope; project: Project; notes: Note[]; projects: Project[]; titles: Map<string, string> }) {
   const { t } = useI18n();
   const projectNotes = notes.filter((n) => n.projects.includes(project.slug));
-  const options = useMemo(() => ({ titles, noteHref: NOTE_HREF, repo: project.repo, t }), [titles, project.repo, t]);
+  const options = useMemo(() => ({ titles, noteHref: noteHref("", scope), repo: project.repo, t }), [titles, project.repo, scope, t]);
   return (
     <article>
       <header className="note-head">
@@ -323,7 +336,7 @@ function ProjectView({ project, notes, projects, titles }: { project: Project; n
       </header>
       <Markdown source={project.body} options={options} />
       <h2 className="section-title">{t("project.notes")}</h2>
-      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} />)}</div>
+      <div className="rows">{projectNotes.map((n) => <NoteRow key={n.slug} n={n} allProjects={projects} scope={scope} />)}</div>
       {!projectNotes.length && <p className="muted">{t("project.none")}</p>}
     </article>
   );

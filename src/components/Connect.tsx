@@ -21,7 +21,7 @@ export function Connect() {
       if (!info.private) return setError(t("connect.err.public"));
       if (!info.canPush) return setError(t("connect.err.push"));
       if (!saveConnection({ repo: `${ref.owner}/${ref.repo}`, token: token.trim() })) return setError(t("connect.err.storage"));
-      window.location.hash = "#/demo";
+      window.location.hash = "#/app";
     } catch (err) {
       setError(
         err instanceof GitHubError && (err.status === 401 || err.status === 403 || err.status === 404)
